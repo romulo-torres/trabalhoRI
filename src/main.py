@@ -95,6 +95,10 @@ def get_fixed_random_indices(n_samples=10, max_range=1000, seed=42):
 # 5. Pipeline principal
 # ==============================
 def main():
+    # elasticsearch
+    logger.info("Tentativa de conexão com o elasticsearch")
+    es = ind.connect_elasticsearch()
+    
     # setup
     setup_huggingface()
 
@@ -111,9 +115,6 @@ def main():
     output_dir = "../data/videos"
     os.makedirs(output_dir, exist_ok=True)
 
-    # elasticsearch
-    logger.info("Tentativa de conexão com o elasticsearch")
-    es = ind.connect_elasticsearch()
     ind.create_index(es, index_name="video_index", dims=512)
 
     # modelo

@@ -22,7 +22,7 @@ librosa
 soundfile
 
 # Elasticsearch (cliente Python)
-elasticsearch
+elasticsearch==8.12.0
 
 # Utilidades
 scikit-learn

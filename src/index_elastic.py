@@ -5,19 +5,15 @@ import numpy as np
 # ==============================
 # 1. Conectar ao Elasticsearch
 # ==============================
-def connect_elasticsearch(host="http://localhost:9200"):
-    es = Elasticsearch(
-        hosts=[host], 
-        request_timeout=30,
-        max_retries=3,
-        retry_on_timeout=True,
-    )
+def connect_elasticsearch():
+    es = Elasticsearch("http://localhost:9200")
 
-    if not es.ping():
-        raise ValueError("Erro ao conectar ao Elasticsearch")
-
-    print("Conectado ao Elasticsearch!")
-    return es
+    try:
+        print(es.info())
+        print("Conectado!")
+        return es
+    except Exception as e:
+        raise ValueError(f"Erro ao conectar: {e}")
 
 
 # ==============================
