@@ -1,0 +1,28 @@
+# Núcleo
+numpy
+pandas
+
+# Processamento de vídeo
+opencv-python
+Pillow
+
+# Deep Learning / Embeddings
+torch
+torchvision
+ftfy
+regex
+tqdm
+
+# CLIP (OpenAI) - opcional, mas recomendado para embeddings semânticos
+# pode exigir git instalado
+git+https://github.com/openai/CLIP.git
+
+# Áudio (opcional - multimodal)
+librosa
+soundfile
+
+# Elasticsearch (cliente Python)
+elasticsearch
+
+# Utilidades
+scikit-learn
