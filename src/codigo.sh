@@ -3,11 +3,15 @@
 echo "🚀 Iniciando pipeline de vídeos..."
 
 # ==============================
+# IR PARA RAIZ DO PROJETO
+# ==============================
+cd "$(dirname "$0")/.." || exit
+
+# ==============================
 # 1. Subir Docker (Elasticsearch)
 # ==============================
 echo "🐳 Subindo Elasticsearch via Docker..."
-cd docker || exit
-docker-compose up -d
+docker-compose -f docker/docker-compose.yml up -d
 
 # ==============================
 # 2. Esperar Elasticsearch iniciar
@@ -20,11 +24,6 @@ until curl -s http://localhost:9200 >/dev/null; do
 done
 
 echo "✅ Elasticsearch está pronto!"
-
-# ==============================
-# 3. Voltar pro projeto
-# ==============================
-cd ..
 
 # ==============================
 # 4. Ativar ambiente virtual (se existir)

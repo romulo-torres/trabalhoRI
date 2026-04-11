@@ -26,3 +26,7 @@ elasticsearch
 
 # Utilidades
 scikit-learn
+
+# Dataset
+dotenv
+fsspec<=2025.10.0 # para evitar conflitos

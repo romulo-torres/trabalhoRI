@@ -26,15 +26,14 @@ def setup_huggingface():
 
 
 # ==============================
-# 2. Baixar dataset (streaming)
+# 2. Baixar dataset 
 # ==============================
 def load_video_dataset():
     return load_dataset(
         "facebook/PE-Video",
         split="test",
         streaming=True
-    )
-
+    ).take(10)
 
 # ==============================
 # 3. Salvar vídeo localmente
@@ -102,11 +101,18 @@ def main():
     # dataset
     dataset = load_video_dataset()
 
+    for i, sample in enumerate(dataset):
+        if i >= 10:
+            break
+
+        logger.info(f"Processando vídeo {i}")
+
     # pasta
     output_dir = "../data/videos"
     os.makedirs(output_dir, exist_ok=True)
 
     # elasticsearch
+    logger.info("Tentativa de conexão com o elasticsearch")
     es = ind.connect_elasticsearch()
     ind.create_index(es, index_name="video_index", dims=512)
 

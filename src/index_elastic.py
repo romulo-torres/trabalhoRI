@@ -7,15 +7,15 @@ import numpy as np
 # ==============================
 def connect_elasticsearch(host="http://localhost:9200"):
     es = Elasticsearch(
-        host,
+        hosts=[host], 
         request_timeout=30,
         max_retries=3,
-        retry_on_timeout=True
-        )
-    
+        retry_on_timeout=True,
+    )
+
     if not es.ping():
         raise ValueError("Erro ao conectar ao Elasticsearch")
-    
+
     print("Conectado ao Elasticsearch!")
     return es
 
@@ -88,9 +88,6 @@ def search_similar(es, query_embedding, index_name="video_index", video_id=None,
         "size": k,
         "query": {
             "bool": {
-                "filter": [
-                    {"term": {"video_id": "video_1"}}
-                ],
                 "must": {
                     "knn": {
                         "embedding": {
