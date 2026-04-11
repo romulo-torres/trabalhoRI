@@ -3,11 +3,14 @@ from dotenv import load_dotenv
 from huggingface_hub import login
 from datasets import load_dataset
 import random
+import time
 
 import keyframes as ky
 import embeddings as emb
 import index_elastic as ind
+from logger import setup_logger
 
+logger = setup_logger()
 
 # ==============================
 # 1. Setup (env + login)
@@ -51,17 +54,15 @@ def save_video(sample, output_dir, idx):
 # 4. Processar UM vídeo
 # ==============================
 def process_video(video_path, video_id, model, preprocess, device, es):
-    print(f"\n🎬 Processando {video_id}...")
+    logger.info(f"🎬 Processando {video_id}...")
 
-    # 1. Gerar janelas
     windows = ky.generate_windows_stream_centered(
         video_path,
         k_seconds=0.5
     )
 
-    print(f"Janelas geradas: {len(windows)}")
+    logger.info(f"Janelas geradas: {len(windows)}")
 
-    # 2. Gerar embeddings
     embeddings = emb.generate_embeddings(
         windows,
         model,
@@ -69,13 +70,13 @@ def process_video(video_path, video_id, model, preprocess, device, es):
         device
     )
 
-    embeddings = emb.generate_embeddings(...)
+    emb.save_embeddings_json(
+        embeddings,
+        path=f"../data/embeddings/{video_id}.json"
+    )
 
-    emb.save_embeddings_json(embeddings, video_id)
+    logger.info(f"Embeddings gerados: {len(embeddings)}")
 
-    print(f"Embeddings gerados: {len(embeddings)}")
-
-    # 3. Indexar no Elasticsearch
     ind.index_embeddings_bulk(
         es,
         embeddings,
@@ -83,7 +84,7 @@ def process_video(video_path, video_id, model, preprocess, device, es):
         video_id=video_id
     )
 
-    print(f"✅ Indexado: {video_id}")
+    logger.info(f"✅ Indexado: {video_id}")
 
     
 def get_fixed_random_indices(n_samples=10, max_range=1000, seed=42):
@@ -110,12 +111,12 @@ def main():
     ind.create_index(es, index_name="video_index", dims=512)
 
     # modelo
-    print("Carregando modelo CLIP...")
+    logger.info("Carregando modelo CLIP...")
     model, preprocess, device = emb.load_model()
 
     selected_indices = get_fixed_random_indices(n_samples=10, max_range=1000)
 
-    print(f"Índices escolhidos: {selected_indices}")
+    logger.info(f"Índices escolhidos: {selected_indices}")
 
     for i, sample in enumerate(dataset):
         if i > max(selected_indices):
@@ -138,13 +139,10 @@ def main():
             )
 
         except Exception as e:
-            print(f"Erro no vídeo {i}: {e}")
+            logger.error(f"Erro no vídeo {i}: {e}")
 
-            # limitar (IMPORTANTE!)
-            if i >= 4:
-                break
 
-    print("\n🚀 Pipeline finalizado!")
+    logger.info("\n🚀 Pipeline finalizado!")
 
 
 # ==============================
