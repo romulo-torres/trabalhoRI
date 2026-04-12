@@ -33,7 +33,7 @@ def load_video_dataset():
         "facebook/PE-Video",
         split="test",
         streaming=True
-    ).take(10)
+    )
 
 # ==============================
 # 3. Salvar vídeo localmente
@@ -90,52 +90,38 @@ def get_fixed_random_indices(n_samples=10, max_range=1000, seed=42):
     random.seed(seed)
     return sorted(random.sample(range(max_range), n_samples))
 
-
-# ==============================
-# 5. Pipeline principal
-# ==============================
-def main():
-    # elasticsearch
-    logger.info("Tentativa de conexão com o elasticsearch")
-    es = ind.connect_elasticsearch()
-    
-    # setup
-    setup_huggingface()
-
-    # dataset
-    dataset = load_video_dataset()
-
-    for i, sample in enumerate(dataset):
-        if i >= 10:
-            break
-
-        logger.info(f"Processando vídeo {i}")
-
-    # pasta
-    output_dir = "../data/videos"
+def download_videos(dataset, output_dir, limit=10):
     os.makedirs(output_dir, exist_ok=True)
 
-    ind.create_index(es, index_name="video_index", dims=512)
-
-    # modelo
-    logger.info("Carregando modelo CLIP...")
-    model, preprocess, device = emb.load_model()
-
-    selected_indices = get_fixed_random_indices(n_samples=10, max_range=1000)
-
-    logger.info(f"Índices escolhidos: {selected_indices}")
-
     for i, sample in enumerate(dataset):
-        if i > max(selected_indices):
+        if i >= limit:
             break
 
-        if i not in selected_indices:
+        try:
+            filepath = os.path.join(output_dir, f"video_{i}.mp4")
+
+            if os.path.exists(filepath):
+                logger.info(f"Vídeo {i} já existe, pulando...")
+                continue
+
+            logger.info(f"Baixando vídeo {i}...")
+
+            with open(filepath, "wb") as f:
+                f.write(sample["mp4"])
+
+        except Exception as e:
+            logger.error(f"Erro ao baixar vídeo {i}: {e}")
+
+
+def process_local_videos(video_dir, model, preprocess, device, es):
+    for filename in os.listdir(video_dir):
+        if not filename.endswith(".mp4"):
             continue
 
-        try:
-            video_path, filename = save_video(sample, output_dir, i)
-            video_id = f"video_{i}"
+        video_path = os.path.join(video_dir, filename)
+        video_id = filename.replace(".mp4", "")
 
+        try:
             process_video(
                 video_path,
                 video_id,
@@ -146,9 +132,44 @@ def main():
             )
 
         except Exception as e:
-            logger.error(f"Erro no vídeo {i}: {e}")
+            logger.error(f"Erro no vídeo {video_id}: {e}")
 
 
+# ==============================
+# 5. Pipeline principal
+# ==============================
+def main():
+    # elasticsearch
+    logger.info("Tentativa de conexão com o elasticsearch")
+    es = ind.connect_elasticsearch()
+
+    # setup
+    setup_huggingface()
+
+    # pasta
+    output_dir = "../data/videos"
+    os.makedirs(output_dir, exist_ok=True)
+
+    ind.create_index(es, index_name="video_index", dims=512)
+
+    # dataset
+    dataset = load_video_dataset()
+    download_videos(dataset, "../data/videos", limit=100)
+
+    # modelo
+    logger.info("Carregando modelo CLIP...")
+    model, preprocess, device = emb.load_model()
+
+    process_local_videos(
+        "../data/videos",
+        model,
+        preprocess,
+        device,
+        es
+    )
+    selected_indices = list(range(10))
+
+    logger.info(f"Índices escolhidos: {selected_indices}")
     logger.info("\n🚀 Pipeline finalizado!")
 
 
