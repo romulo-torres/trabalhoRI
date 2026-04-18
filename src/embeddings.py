@@ -7,6 +7,9 @@ import keyframes as ky
 import json
 import os
 
+# estava dando erro com o np.float
+np.float_ = np.float64
+
 
 # ==============================
 # 1. Carregar modelo CLIP

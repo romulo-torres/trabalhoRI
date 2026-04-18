@@ -34,15 +34,9 @@ if [ -d ".venv" ]; then
 fi
 
 # ==============================
-# 5. Instalar dependências (opcional)
-# ==============================
-echo "📦 Instalando dependências..."
-pip install -r requirements.txt
-
-# ==============================
 # 6. Rodar pipeline
 # ==============================
-echo "🎬 Executando main.py..."
-python src/main.py
+echo "🎬 Executando main_search.py..."
+python src/main_search.py
 
 echo "🎉 Pipeline finalizado!"

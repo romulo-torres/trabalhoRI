@@ -1,5 +1,5 @@
 # Núcleo
-numpy
+numpy<2.0
 pandas
 
 # Processamento de vídeo

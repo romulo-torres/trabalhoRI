@@ -1,17 +1,11 @@
-import numpy as np
+import index_elastic as ind
+from embeddings import embed_frame
+
+import keyframes as ky
 import embeddings as emb
 import index_elastic as ind
-import keyframes as key
-from elasticsearch import Elasticsearch
-
-from embeddings import load_model, embed_frame
-
-
-# ==============================
-# 2. Normalizar embedding
-# ==============================
-def normalize_embedding(embedding):
-    return embedding / np.linalg.norm(embedding)
+from logger import setup_logger
+from collections import defaultdict
 
 
 
@@ -71,32 +65,88 @@ def search_by_image_path(
     )
 
 
-# ==============================
-# 6. Exemplo de uso
-# ==============================
-if __name__ == "__main__":
-    es = ind.connect_elasticsearch()
+
+def search_video(es, query_embeddings,top_k=10):
+    scores = defaultdict(float)
+    counts = defaultdict(int)
+    unique_videos = set()
+
+    max_hits_per_video = 5 # ou 3
+
+    video_hits = defaultdict(int)
+
+    for item in query_embeddings:
+        emb = item["embedding"]
+
+        if not isinstance(emb, list):
+            emb = emb.tolist()
+
+        results = es.search(
+            index="video_index",
+            knn={
+                "field": "embedding",
+                "query_vector": emb,
+                "k": 50,
+                "num_candidates": 500
+            }
+        )
+
+        for hit in results["hits"]["hits"]:
+            video_id = hit["_source"]["video_id"]
+            unique_videos.add(video_id)
+            if video_hits[video_id] >= max_hits_per_video:
+                continue
+
+            score = hit["_score"]
+
+            scores[video_id] += score
+            counts[video_id] += 1
+            video_hits[video_id] += 1
+            
+
+    # ✅ média
+    final_scores = {
+        vid: scores[vid] / counts[vid]
+        for vid in scores
+    }
+
+    print("Vídeos únicos encontrados:", len(unique_videos))
+    print(unique_videos)
+
+    # ✅ ordenar pela média (correto)
+    ranked = sorted(final_scores.items(), key=lambda x: x[1], reverse=True)
+
+    return ranked[:top_k]
     
-    print("Carregando modelo...")
-    model, preprocess, device = load_model()
+
+
+
+# # ==============================
+# # 6. Exemplo de uso
+# # ==============================
+# if __name__ == "__main__":
+#     es = ind.connect_elasticsearch()
     
-    # exemplo com imagem
-    image_path = "query.jpg"
+#     print("Carregando modelo...")
+#     model, preprocess, device = load_model()
     
-    print("Buscando...")
-    results = search_by_image_path(
-        es,
-        image_path,
-        model,
-        preprocess,
-        device,
-        k=5
-    )
+#     # exemplo com imagem
+#     image_path = "query.jpg"
     
-    print("\nResultados:")
-    for r in results:
-        print(f"Score: {r['score']:.4f}")
-        print(f"Vídeo: {r['video_id']}")
-        print(f"Timestamp: {r['timestamp_sec']}s")
-        print(f"Frame: {r['center_frame']}")
-        print("-" * 30)
+#     print("Buscando...")
+#     results = search_by_image_path(
+#         es,
+#         image_path,
+#         model,
+#         preprocess,
+#         device,
+#         k=5
+#     )
+    
+#     print("\nResultados:")
+#     for r in results:
+#         print(f"Score: {r['score']:.4f}")
+#         print(f"Vídeo: {r['video_id']}")
+#         print(f"Timestamp: {r['timestamp_sec']}s")
+#         print(f"Frame: {r['center_frame']}")
+#         print("-" * 30)

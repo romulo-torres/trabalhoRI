@@ -3,7 +3,6 @@ from dotenv import load_dotenv
 from huggingface_hub import login
 from datasets import load_dataset
 import random
-import time
 
 import keyframes as ky
 import embeddings as emb
@@ -90,36 +89,57 @@ def get_fixed_random_indices(n_samples=10, max_range=1000, seed=42):
     random.seed(seed)
     return sorted(random.sample(range(max_range), n_samples))
 
-def download_videos(dataset, output_dir, limit=10):
+def download_videos(dataset, output_dir, target_total=100):
     os.makedirs(output_dir, exist_ok=True)
 
+    existing = count_videos(output_dir)
+
+    if existing >= target_total:
+        logger.info("Já tem vídeos suficientes.")
+        return
+
     for i, sample in enumerate(dataset):
-        if i >= limit:
+        if existing >= target_total:
             break
 
+        filepath = os.path.join(output_dir, f"video_{existing}.mp4")
+
+        if os.path.exists(filepath):
+            existing += 1
+            continue
+
+        logger.info(f"Baixando vídeo {existing}...")
+
         try:
-            filepath = os.path.join(output_dir, f"video_{i}.mp4")
-
-            if os.path.exists(filepath):
-                logger.info(f"Vídeo {i} já existe, pulando...")
-                continue
-
-            logger.info(f"Baixando vídeo {i}...")
-
             with open(filepath, "wb") as f:
                 f.write(sample["mp4"])
 
+            existing += 1
+
         except Exception as e:
-            logger.error(f"Erro ao baixar vídeo {i}: {e}")
+            logger.error(f"Erro ao baixar vídeo {existing}: {e}")
+
+def already_indexed(es, video_id):
+    res = es.search(
+        index="video_index",
+        query={"term": {"video_id": video_id}},
+        size=1
+    )
+    return len(res["hits"]["hits"]) > 0
 
 
 def process_local_videos(video_dir, model, preprocess, device, es):
-    for filename in os.listdir(video_dir):
+    for filename in sorted(os.listdir(video_dir)):
         if not filename.endswith(".mp4"):
             continue
 
-        video_path = os.path.join(video_dir, filename)
         video_id = filename.replace(".mp4", "")
+
+        if already_indexed(es, video_id):
+            logger.info(f"{video_id} já indexado, pulando...")
+            continue
+
+        video_path = os.path.join(video_dir, filename)
 
         try:
             process_video(
@@ -135,42 +155,53 @@ def process_local_videos(video_dir, model, preprocess, device, es):
             logger.error(f"Erro no vídeo {video_id}: {e}")
 
 
+def count_videos(video_dir):
+    return len([
+        f for f in os.listdir(video_dir)
+        if f.endswith(".mp4")
+    ])
+
+
+
 # ==============================
 # 5. Pipeline principal
 # ==============================
 def main():
-    # elasticsearch
+    # 1. Elasticsearch
     logger.info("Tentativa de conexão com o elasticsearch")
     es = ind.connect_elasticsearch()
 
-    # setup
-    setup_huggingface()
+    # 2. Pasta de vídeos
+    video_dir = "./data/videos"
+    os.makedirs(video_dir, exist_ok=True)
 
-    # pasta
-    output_dir = "../data/videos"
-    os.makedirs(output_dir, exist_ok=True)
+    # 3. Verificar quantidade
+    num_videos = count_videos(video_dir)
 
+    if num_videos < 100:
+        logger.info(f"Só existem {num_videos} vídeos. Baixando até completar 100...")
+        
+        setup_huggingface()
+        dataset = load_video_dataset()
+        download_videos(dataset, video_dir, target_total=100)
+    else:
+        logger.info(f"Já existem {num_videos} vídeos. Pulando download.")
+
+    # 4. Criar índice
     ind.create_index(es, index_name="video_index", dims=512)
 
-    # dataset
-    dataset = load_video_dataset()
-    download_videos(dataset, "../data/videos", limit=100)
-
-    # modelo
+    # 5. Modelo
     logger.info("Carregando modelo CLIP...")
     model, preprocess, device = emb.load_model()
 
+    # 6. Processar vídeos locais
     process_local_videos(
-        "../data/videos",
+        video_dir,
         model,
         preprocess,
         device,
         es
     )
-    selected_indices = list(range(10))
-
-    logger.info(f"Índices escolhidos: {selected_indices}")
-    logger.info("\n🚀 Pipeline finalizado!")
 
 
 # ==============================

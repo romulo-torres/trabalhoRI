@@ -1,6 +1,8 @@
 import cv2
 import numpy as np
 
+np.float_ = np.float64
+
 # ==============================
 # 1. Extrair TODOS os frames
 # ==============================
@@ -92,16 +94,16 @@ def generate_windows_stream_centered(video_path, k_seconds=0.5):
 # ==============================
 # 5. Exemplo de uso
 # ==============================
-if __name__ == "__main__":
-    video_path = "video.mp4"
+# if __name__ == "__main__":
+#     video_path = "video.mp4"
     
-    windows = generate_windows_stream_centered(video_path, k_seconds=0.5)
+#     windows = generate_windows_stream_centered(video_path, k_seconds=0.5)
     
-    print(f"Total de janelas geradas: {len(windows)}")
+#     print(f"Total de janelas geradas: {len(windows)}")
     
-    # acessar primeira janela
-    first = windows[0]
+#     # acessar primeira janela
+#     first = windows[0]
     
-    print(f"Frame central: {first['center_frame']}")
-    print(f"Timestamp: {first['timestamp_sec']}s")
-    print(f"Número de frames na janela: {len(first['window'])}")
+#     print(f"Frame central: {first['center_frame']}")
+#     print(f"Timestamp: {first['timestamp_sec']}s")
+#     print(f"Número de frames na janela: {len(first['window'])}")

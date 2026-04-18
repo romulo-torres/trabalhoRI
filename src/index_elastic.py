@@ -2,6 +2,8 @@ from elasticsearch import Elasticsearch, helpers
 import numpy as np
 
 
+np.float_ = np.float64
+
 # ==============================
 # 1. Conectar ao Elasticsearch
 # ==============================
