@@ -5,6 +5,7 @@ pandas
 # Processamento de vídeo
 opencv-python
 Pillow
+scenedetect[opencv] # para detecção de cena
 
 # Deep Learning / Embeddings
 torch
@@ -28,5 +29,5 @@ elasticsearch==8.12.0
 scikit-learn
 
 # Dataset
-dotenv
 fsspec<=2025.10.0 # para evitar conflitos
+yt-dlp
