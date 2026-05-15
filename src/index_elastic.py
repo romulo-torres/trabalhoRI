@@ -1,26 +1,26 @@
 import os
 import subprocess
 import random
-import numpy as np
 import json
 
+import numpy as np
 from elasticsearch import Elasticsearch, helpers
-
 from scenedetect import open_video, SceneManager
 from scenedetect.detectors import ContentDetector
-import urllib.request
 
 import keyframes as ky
 import embeddings as emb
 from logger import setup_logger
 
-# Compatibilidade com versões antigas do NumPy
 np.float_ = np.float64
 
 logger = setup_logger()
 
 
-def ensure_activitynet_json(json_path: str):
+# ==============================================================================
+# ActivityNet — download do JSON de anotações
+# ==============================================================================
+def ensure_activitynet_json(json_path: str) -> None:
     if os.path.exists(json_path):
         print(f"Arquivo já existe: {json_path}")
         return
@@ -28,46 +28,46 @@ def ensure_activitynet_json(json_path: str):
     os.makedirs(os.path.dirname(json_path), exist_ok=True)
 
     url = "https://storage.googleapis.com/activitynet/annotations/activity_net.v1-3.min.json"
-
     print("Baixando ActivityNet JSON com wget...")
 
     try:
-        subprocess.run([
-            "wget",
-            "-O", json_path,
-            url
-        ], check=True)
+        subprocess.run(["wget", "-O", json_path, url], check=True)
     except Exception as e:
         raise RuntimeError("Falha ao baixar ActivityNet com wget") from e
 
     print("Download concluído!")
 
-def download_video(video_id, output_dir):
-    url = f"https://www.youtube.com/watch?v={video_id}"
+
+def load_activitynet(json_path: str) -> dict:
+    with open(json_path) as f:
+        data = json.load(f)
+    return data["database"]
+
+
+# ==============================================================================
+# Download de vídeo do YouTube via yt-dlp
+# ==============================================================================
+def download_video(video_id: str, output_dir: str) -> str | None:
     output_path = os.path.join(output_dir, f"{video_id}.mp4")
 
     if os.path.exists(output_path):
         return output_path
 
+    url = f"https://www.youtube.com/watch?v={video_id}"
+
     try:
         subprocess.run([
             "yt-dlp",
-            "-f", "mp4",
+            "-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/mp4",
+            "--merge-output-format", "mp4",
             "-o", output_path,
-            url
+            url,
         ], check=True)
-
         return output_path
-
-    except Exception:
+    except Exception as e:
+        logger.error(f"Falha ao baixar {video_id}: {e}")
         return None
 
-
-def load_activitynet(json_path):
-    with open(json_path) as f:
-        data = json.load(f)
-
-    return data["database"]
 
 # ==============================================================================
 # Detecção de cenas
@@ -116,6 +116,8 @@ def create_index(
         "mappings": {
             "properties": {
                 "video_id":      {"type": "keyword"},
+                "scene_index":   {"type": "integer"},  # qual cena no vídeo
+                "part_index":    {"type": "integer"},  # 0, 1 ou 2 (terço da cena)
                 "timestamp_sec": {"type": "float"},
                 "center_frame":  {"type": "integer"},
                 "embedding": {
@@ -157,11 +159,15 @@ def index_embeddings_bulk(
                 if isinstance(item["embedding"], np.ndarray)
                 else item["embedding"]
             )
+            # _id único e determinístico: video + cena + parte
+            doc_id = f"{video_id}_s{item.get('scene_index', 0)}_p{item['part_index']}"
             yield {
                 "_index": index_name,
-                "_id":    f"{video_id}_{item['center_frame']}",
+                "_id":    doc_id,
                 "_source": {
                     "video_id":      video_id,
+                    "scene_index":   item.get("scene_index", 0),
+                    "part_index":    item["part_index"],
                     "timestamp_sec": item["timestamp_sec"],
                     "center_frame":  item["center_frame"],
                     "embedding":     vector,
@@ -218,6 +224,8 @@ def search_similar(
         {
             "score":         hit["_score"],
             "video_id":      hit["_source"]["video_id"],
+            "scene_index":   hit["_source"].get("scene_index"),
+            "part_index":    hit["_source"].get("part_index"),
             "timestamp_sec": hit["_source"]["timestamp_sec"],
             "center_frame":  hit["_source"]["center_frame"],
         }
@@ -238,6 +246,7 @@ def delete_index(es, index_name: str = "video_index") -> None:
 
 # ==============================================================================
 # Processar um único vídeo
+# Cada corte é dividido em 3 partes → 3 embeddings por cena
 # ==============================================================================
 def process_video(
     video_path: str,
@@ -246,6 +255,7 @@ def process_video(
     preprocess,
     device,
     es,
+    n_parts: int = 4,
 ) -> None:
     logger.info(f"🎬 Processando {video_id}...")
 
@@ -255,42 +265,74 @@ def process_video(
         logger.warning(f"Falha na detecção de cenas de {video_id}: {e}. Usando vídeo inteiro.")
         scenes = []
 
+    # Fallback: trata o vídeo inteiro como uma única cena
+    if not scenes:
+        import cv2
+        cap   = cv2.VideoCapture(video_path)
+        fps   = cap.get(cv2.CAP_PROP_FPS) or 30.0
+        total = cap.get(cv2.CAP_PROP_FRAME_COUNT)
+        cap.release()
+        scenes = [(0.0, total / fps)]
+
     logger.info(f"Cenas detectadas: {len(scenes)}")
 
-    windows = []
-    for start, end in scenes:
+    all_embeddings = []
+
+    for scene_idx, (start, end) in enumerate(scenes):
         if end - start < 1.0:
             continue
-        try:
-            windows.extend(ky.generate_windows_stream_centered(
-                video_path, start_time=start, end_time=end, k_seconds=0.5,
-            ))
-        except Exception as e:
-            logger.warning(f"Erro ao gerar janela [{start:.2f}s – {end:.2f}s]: {e}")
 
-    if not windows:
-        logger.warning("Nenhuma janela por cena — fallback para janelas fixas no vídeo inteiro.")
         try:
-            windows = ky.generate_windows_stream_centered(video_path, k_seconds=0.5)
+            parts = ky.split_scene_into_parts(
+                video_path,
+                start_time=start,
+                end_time=end,
+                n_parts=n_parts,
+            )
         except Exception as e:
-            logger.error(f"Fallback também falhou para {video_id}: {e}")
-            return
+            logger.warning(f"Erro ao dividir cena {scene_idx} [{start:.2f}s–{end:.2f}s]: {e}")
+            continue
 
-    if not windows:
-        logger.error(f"Nenhuma janela gerada para {video_id}. Pulando.")
+        for part in parts:
+            try:
+                vector = emb.embed_window(
+                    part["frames"],
+                    model,
+                    preprocess,
+                    device,
+                    method="mean",
+                )
+                all_embeddings.append({
+                    "scene_index":   scene_idx,
+                    "part_index":    part["part_index"],
+                    "timestamp_sec": part["timestamp_sec"],
+                    "center_frame":  part["center_frame"],
+                    "embedding":     vector,
+                })
+            except Exception as e:
+                logger.warning(
+                    f"Erro ao embeddar cena {scene_idx} parte {part['part_index']}: {e}"
+                )
+
+    if not all_embeddings:
+        logger.error(f"Nenhum embedding gerado para {video_id}. Pulando.")
         return
 
-    logger.info(f"Janelas geradas: {len(windows)}")
-
-    embeddings = emb.generate_embeddings(windows, model, preprocess, device)
+    logger.info(
+        f"Embeddings gerados: {len(all_embeddings)} "
+        f"({len(scenes)} cenas × {n_parts} partes)"
+    )
 
     emb_dir = "./data/embeddings"
     os.makedirs(emb_dir, exist_ok=True)
-    emb.save_embeddings_json(embeddings, path=os.path.join(emb_dir, f"{video_id}.json"))
-    logger.info(f"Embeddings gerados: {len(embeddings)}")
+    emb.save_embeddings_json(
+        all_embeddings,
+        path=os.path.join(emb_dir, f"{video_id}.json"),
+    )
 
-    index_embeddings_bulk(es, embeddings, index_name="video_index", video_id=video_id)
+    index_embeddings_bulk(es, all_embeddings, index_name="video_index", video_id=video_id)
     logger.info(f"✅ Indexado: {video_id}")
+
 
 # ==============================================================================
 # Verificar se vídeo já está indexado
