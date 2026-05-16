@@ -1,41 +1,27 @@
----
-
 # 📘 README.md
 
 ## 🎯 Visão Geral
 
-Este projeto implementa um sistema de **busca de vídeos por similaridade** (video-to-video search) utilizando:
+Este projeto implementa um sistema de **busca multimodal de vídeos** que combina:
 
-* Embeddings visuais (frames)
-* Contexto temporal (janelas de frames)
-* Busca vetorial com Elasticsearch
+- **Embeddings visuais** (CLIP) a partir de segmentos de frames.
+- **Embeddings de áudio** (CLAP) extraídos das mesmas janelas temporais.
+- **Busca textual** com suporte a descrições (CLIP texto + BM25).
+- **Indexação e busca vetorial** utilizando Elasticsearch com HNSW.
+- Interface interativa via **Streamlit** para consultas por texto ou por upload de vídeo.
 
-O objetivo é recuperar trechos de vídeo semelhantes com base no conteúdo visual (e opcionalmente áudio).
+O sistema é capaz de recuperar vídeos semelhantes considerando tanto o conteúdo visual quanto o sonoro, e também permite buscas puramente textuais (ex.: “pessoa tocando violão”).
 
 ---
 
 ## ALGUMAS CONFIGURAÇÕES
 
-* Configurar o .env com a chave do hugginface para usar
-
---- 
-
-## 🧠 Arquitetura
-
-```
-Vídeo → Extração de Frames → Embeddings → Elasticsearch → Busca por Similaridade
-```
-
-### Etapas do Pipeline
-
-1. Extrair os frames em um segundo do vídeo
-2. Gerar embeddings para cada frame com o contexto do segundo que ele está dentro
-3. Armazenar embeddings no Elasticsearch
-4. Realizar busca k-NN (vizinhos mais próximos)
+- Configure o arquivo `.env` com a chave do HuggingFace caso utilize datasets que exijam autenticação.
 
 ---
 
-## 📁 Estrutura do Projeto
+## 🧠 Arquitetura
+
 
 ```
 trabalhoRI/
@@ -45,7 +31,7 @@ trabalhoRI/
 │   └── embeddings/ (tem que colocar para salvar os embeddings)
 │
 ├── src/
-│   ├── consultas.sh
+│   ├── app.py
 │   ├── embeddings.py
 │   ├── index_elastic.py
 │   ├── indexar.sh
@@ -67,20 +53,20 @@ trabalhoRI/
 
 ## ⚙️ Configuração
 
-### 1. Clonar o repositório
+### 1. Clonar o repositório e Dependências
 
 ```bash
 git clone <seu-repositorio>
 cd trabalhoRI
+pip install -r requirements.txt
 ```
 
 ---
 
-### 2. Dar permissão para ambos os arquivos `.sh`
+### 2. Dar permissão para indexar.sh `.sh`
 
 ```bash
 chmod +x src/indexar.sh
-chmod +x src/consultas.sh
 ```
 
 ---
@@ -91,13 +77,16 @@ chmod +x src/consultas.sh
 src/indexar.sh
 ```
 
----
-
-### 4. Agora executar o `consultas.sh` (futuramente adicionar mais consultas)
-
+### Para uma procura rápida de somente um vídeo use o `main_index.py`
 ```bash
-src/consultas.sh
+python src/main_index.py
 ```
+
+### Para usar a interface do streamlit use 
+```bash
+streamlit run src/app.py
+```
+
 ---
 
 ## 🧩 Índice no Elasticsearch
@@ -107,404 +96,140 @@ Crie um índice com suporte a vetores:
 ```json
 função create_index do index_elastic.py
 {
-        "mappings": {
-            "properties": {
-                "video_id": {"type": "keyword"},
-                "timestamp_sec": {"type": "float"},
-                "center_frame": {"type": "integer"},
-                "embedding": {
-                    "type": "dense_vector",
-                    "dims": dims,
-                    "index": True,
-                    "similarity": "cosine",
-                    "index_options": {
-                        "type": "hnsw",
-                        "m": 32,
-                        "ef_construction": 200
-                    }
-                }
-            }
-        }
+  "mappings": {
+    "properties": {
+      "video_id":          {"type": "keyword"},
+      "title":             {"type": "text", "analyzer": "video_text_analyzer"},
+      "scene_index":       {"type": "integer"},
+      "part_index":        {"type": "integer"},
+      "timestamp_sec":     {"type": "float"},
+      "center_frame":      {"type": "integer"},
+      "modality":          {"type": "keyword"},
+      "feature_desc":      {"type": "text", "analyzer": "video_text_analyzer"},
+      "keywords":          {"type": "text", "analyzer": "video_text_analyzer"},
+      "feature_categorias":{"type": "keyword"},
+      "feature_thumb":     {"type": "dense_vector", "dims": 512, …},
+      "embedding":         {"type": "dense_vector", "dims": 512, …}
     }
+  }
+}
 ```
+- `embedding`: vetor denso de 512 dimensões (CLIP ou CLAP, dependendo da modality).
 
----
+- `feature_thumb`: embedding da thumbnail do YouTube (mesmo vídeo, mesmo vetor).
 
-## 🎥 Estratégia de Embeddings
-
-### Contexto Temporal
-
-Em vez de usar apenas um frame isolado:
-
-```
-[t-3, t-2, t-1, t, t+1, t+2, t+3]
-```
-
-Agregamos os embeddings para obter uma representação mais rica.
-
-### Métodos de Agregação
-
-* Média (baseline) (atualmente esse é usado)
-* Média ponderada
-* Attention (mais avançado)
-
----
-
-## 🔍 Busca
-
-Exemplo de consulta:
-
-```json
-parte da função search_video do search.py
-index="video_index",
-            knn={
-                "field": "embedding",
-                "query_vector": emb,
-                "k": 50,
-                "num_candidates": 500
-            }
-```
-
----
-
-## 🚀 Funcionalidades
-
-* Extração de embeddings por frame
-* Agregação temporal
-* Busca por similaridade vetorial
-* Escalável com Elasticsearch
-* Pronto para multimodal (áudio/texto)
-
----
-
-## 🔮 Melhorias Futuras
-
-* Detecção de cortes de cena (shot detection)
-* Integração com embeddings de áudio
-* Fusão multimodal (vídeo + áudio + texto)
-* Busca híbrida (vetorial + texto)
-* Integração com FAISS para maior desempenho
-
----
-
-## 🧪 Ideias de Experimentos
-
-* Comparar frame isolado vs contexto temporal
-* Avaliar diferentes tamanhos de janela (k=3, 5, 7)
-* Medir precisão de recuperação (precision@k)
-
----
-
-## ⚠️ Observações
-
-* Elasticsearch é usado por simplicidade; FAISS pode ser mais rápido em larga escala
-* A dimensão do embedding depende do modelo (ex: CLIP = 512)
-
-
-## 📌 Resumo
-
-Este projeto demonstra uma implementação prática de:
-
-> Recuperação de vídeos baseada em conteúdo (Content-Based Video Retrieval) com embeddings sensíveis ao contexto temporal
-
----
-
-## Comentários sobre os arquivos
-
-
-## Arquivos `.sh`
-
-Os scripts `.sh` foram criados para automatizar a execução do pipeline completo.
-
-### Funções principais:
-- Subir o Elasticsearch via Docker
-- Aguardar o serviço iniciar corretamente
-- Instalar dependências
-- Executar os scripts Python na ordem correta
-
-Isso evita problemas de execução manual e garante consistência do ambiente.
-
----
-
-## `embeddings.py`
-
-Este módulo é responsável por **gerar embeddings vetoriais a partir de vídeos**.
-
----
-
-###  Modelo utilizado
-
-- Utiliza o modelo **CLIP (Contrastive Language–Image Pretraining)** da OpenAI
-- Arquitetura: `ViT-B/32`
-
-### Motivo da escolha:
-- Já estava pronto
-- Excelente desempenho em tarefas de similaridade visual
-- Não requer treinamento adicional
----
-
-## `index_elastic.py`
-
-Responsável pela **integração com o Elasticsearch**.
-
-### Funcionalidades:
-
-- **Conexão com Elasticsearch**
-  - `connect_elasticsearch()`
-  - Testa conexão com `localhost:9200`
-
-- **Criação do índice**
-  - `create_index()`
-  - Define o schema com:
-    - `video_id` (keyword)
-    - `timestamp_sec` (float)
-    - `center_frame` (int)
-    - `embedding` (dense_vector - 512 dimensões)
-  - Usa **HNSW** para busca vetorial eficiente
-
-- **Indexação em lote**
-  - `index_embeddings_bulk()`
-  - Usa `helpers.bulk` para performance
-  - ID único: `video_id + center_frame`
-
-- **Busca por similaridade**
-  - `search_similar()`
-  - Usa KNN com similaridade de cosseno
-  - Permite filtro opcional por `video_id`
-
----
-
-## `keyframes.py`
-
-Responsável pela **extração de frames e geração de janelas temporais**.
-
-### Funcionalidades:
-
-- **Extração de frames**
-  - `extract_all_frames()`
-  - Retorna todos os frames + FPS
-
-- **Sincronização temporal**
-  - `get_sync_indices()`
-  - Seleciona frames (ex: 1 por segundo)
-
-- **Criação de janelas**
-  - `get_window()`
-  - Cria contexto ao redor de um frame
-
-- **Pipeline principal**
-  - `generate_windows_stream_centered()`
-  - Processa vídeo em **streaming (baixo uso de memória)**
-  - Gera janelas com:
-    - frame central
-    - timestamp
-    - contexto temporal
-
- Ideia chave:
-> Cada embedding representa um momento do vídeo + contexto ao redor
-
----
-
-## `embeddings.py`
-
-Responsável por gerar **representações vetoriais (embeddings)**.
-
-### Funcionalidades:
-
-- **Carregar modelo CLIP**
-  - `load_model()`
-  - Usa `ViT-B/32`
-
-- **Conversão de frame**
-  - `frame_to_pil()`
-  - OpenCV (BGR) → PIL (RGB)
-
-- **Embedding de frame**
-  - `embed_frame()`
-  - Normalização L2 (essencial para cosine similarity)
-
-- **Embedding de janela**
-  - `embed_window()`
-  - Métodos:
-    - `mean` (usado)
-    - `max`
-    - `center`
-
-- **Embeddings de vídeo**
-  - `generate_embeddings()`
-  - Gera embedding por janela
-
-- **Salvar embeddings**
-  - `save_embeddings_json()`
-
-Ideia chave:
-> O embedding representa o conteúdo visual do vídeo
-
----
-
-## `logger.py`
-
-Sistema de **log estruturado**.
-
-### Funcionalidades:
-
-- Cria pasta de logs automaticamente
-- Salva logs em arquivo
-- Exibe logs no terminal
-- Evita duplicação de handlers
+- Campos de texto com analisador personalizado (video_text_analyzer) para suporte a stemming e stopwords em inglês.
 
 
 ---
 
-## `main_index.py`
+## Estratégia de Embeddings
 
-Pipeline principal de **indexação de vídeos**.
+## Videos
 
-### Etapas:
+1. Detecção de cenas: PySceneDetect identifica mudanças de conteúdo.
 
-1. Conecta ao Elasticsearch
-2. Verifica pasta de vídeos
-3. Baixa vídeos se necessário
-4. Cria índice
-5. Carrega modelo CLIP
-6. Processa vídeos locais
+2. Segmentação: Cada cena é dividida em segmentos consecutivos de no máximo 45 frames (configurável via max_frames_per_segment). Isso garante que não haja uma divisão arbitrária em N partes fixas, mas sim uma varredura completa da cena.
 
-### Funcionalidades importantes:
+3. Extração: Para cada segmento, os frames são convertidos para embeddings CLIP (ViT‑B/32) e agregados por média (padrão) [também possui a opção de média ponderada e attention]. O vetor resultante é normalizado (L2).
 
-- `count_videos()`
-  - Conta vídeos locais
+## Áudio
 
-- `download_videos()`
-  - Baixa até atingir N vídeos
+- O áudio completo do vídeo é extraído (ffmpeg → WAV mono 16kHz).
 
-- `already_indexed()`
-  - Evita reprocessar vídeos já indexados
+- Para cada segmento temporal correspondente a um segmento de vídeo (mesmo intervalo de tempo), um embedding CLAP é gerado.
 
-- `process_video()`
-  - Pipeline completo:
-    - gerar janelas
-    - gerar embeddings
-    - salvar JSON
-    - indexar no Elasticsearch
+- Se o vídeo não possuir áudio, os embeddings de áudio são ignorados (sem quebrar o pipeline).
 
-Ideia chave:
-> Pipeline robusto e incremental (evita retrabalho)
+## Metadados Textuais
+
+- feature_desc: descrição gerada a partir da categoria do ActivityNet e do título.
+
+- keywords: palavras‑chave extraídas da taxonomia e título.
+
+- title: título do vídeo (obtido via yt‑dlp ou anotação).
 
 ---
 
-## `main_search.py`
+### Módulos Principais
 
-Script de **consulta (busca por vídeo)**.
+`embeddings.py`
 
-### Fluxo:
+    load_all_models(): carrega CLIP e CLAP com cache global.
 
-1. Conecta ao Elasticsearch
-2. Carrega modelo CLIP
-3. Gera embeddings do vídeo query
-4. Busca vídeos similares
-5. Exibe ranking
+    embed_frame() / embed_window(): embeddings de frames/janelas com agregação (mean, max, center).
 
-Saída:
+    generate_embeddings_from_scenes(): gera embeddings de vídeo a partir de cenas.
 
-```bash
-Top resultados:
+    generate_audio_embeddings_from_windows() / from_scenes(): embeddings de áudio.
 
-1. video_90 -> 0.9920
-```
+    extract_audio_from_video(): extrai áudio via ffmpeg.
 
----
+    save_embeddings_json() / load_embeddings_json(): persistência dos embeddings.
 
-## `search.py`
+`keyframes.py`
 
-Responsável pelas **estratégias de busca**.
+    generate_windows_stream_centered(): janelas temporais centradas nos keyframes (1 por segundo).
 
-### Funcionalidades:
+    split_scene_into_segments(): divide uma cena em segmentos consecutivos de até N frames.
 
-#### Busca por frame
-- `search_by_frame()`
-- Gera embedding e consulta Elasticsearch
+    extract_all_frames(), get_sync_indices(), get_window(): funções auxiliares.
 
-#### Busca por imagem
-- `search_by_image_path()`
+`index_elastic.py`
 
-#### Busca por vídeo (principal)
-- `search_video()`
+    connect_elasticsearch(): conexão com o cluster.
 
-### Estratégia usada:
+    create_index(): define o mapeamento (vetores + texto) e cria o índice.
 
-- Para cada embedding da query:
-  - Faz busca KNN
-- Agrega resultados por `video_id`
+    index_embeddings_bulk(): indexação em lote com metadados.
 
-### Melhorias implementadas:
+    process_video(): pipeline completo (cenas → segmentos → embeddings → indexação).
 
-- **Score médio por vídeo**
-- **Limite de hits por vídeo**
-  - evita um único vídeo dominar o ranking
-- **Diversificação**
-- controle de:
-  - `k`
-  - `num_candidates`
+    process_local_videos(): varre uma pasta de MP4 e indexa os ainda não processados.
 
-Ideia chave:
-> Ranking baseado na **similaridade média entre janelas**
+    update_feature_desc(), update_title(): atualizações parciais.
 
----
+`search.py`
 
-# Conceitos Importantes
+    search_hybrid(): busca combinada de vídeo + áudio.
 
-## Embedding
-Representação vetorial de uma imagem/frame.
+    search_hybrid_text_vector(): busca combinada de vetor (CLIP) + BM25 textual.
 
-## Cosine Similarity
-Mede similaridade entre vetores.
+    search_by_frame(), search_by_image_path(): busca por frame/imagem.
 
-## HNSW
-Algoritmo eficiente para busca aproximada em vetores.
+    search_video(): busca por múltiplos embeddings agregando por vídeo.
 
-## Janela Temporal
-Contexto ao redor de um frame (melhora semântica).
+`app.py (Streamlit)`
 
----
+    Interface gráfica com seleção de modo, pesos, upload de vídeo e exibição de resultados (thumbnails + links).
 
-# Pipeline Geral
+### Melhorias Futuras
 
-```
-Vídeo → Frames → Janelas → Embeddings → Elasticsearch → Busca
-```
----
+    Integração com FAISS para busca vetorial de alta performance.
 
-# Observações
+    Modelos mais recentes (ex.: CLIP ViT‑L, ImageBind, Video‑LLaMA).
 
-- `np.float_ = np.float64` usado por compatibilidade com NumPy 2.0 (mas não deu certo mesmo assim então nos `requeriments.txt` está usando `numpy<2.0`)
-- Normalização dos embeddings é essencial
-- Elasticsearch mantém dados mesmo após desligar (se persistência ativa)
+    Legendagem automática do vídeo de consulta para busca textual mais precisa.
 
----
+    Suporte a outros idiomas nos analisadores de texto.
 
-# Possíveis Melhorias
+    Re‑ranking com modelos mais fortes (cross‑encoders).
 
-- Hybrid Search (CLIP + BM25) [talvez BM25 não funcione pois não há palavras, apenas embeddings]
-- Re-ranking com modelo mais forte
-- PCA para reduzir dimensionalidade (sei nem o que significa, GPT que escreveu)
-- Indexar áudio/transcrição
-- Usar modelos multimodais mais recentes (pesquisar possivelmente)
-- Detecção de cortes de cena (shot detection)
-- Integração com embeddings de áudio
-- Fusão multimodal (vídeo + áudio + texto)
-- Busca híbrida (vetorial + texto)
-- Integração com FAISS para maior desempenho (GPT falou muitas vezes que isso é melhor que elastic pra busca entre vetores, sei não se é vdd)
+    Detecção de cortes de cena mais robusta (shot detection).
 
----
+    Frontend aprimorado com visualização dos segmentos correspondentes.
 
-# Status do Projeto
+📌 Status do Projeto
 
-✔ Indexação funcionando  
-✔ Busca vetorial funcionando  
-✔ Pipeline completo funcional  
-✔ Evita duplicação  
-✔ Ranking com score médio  
+✔ Indexação multimodal (vídeo + áudio + texto)
+✔ Busca vetorial com HNSW
+✔ Busca híbrida (vídeo + áudio) e textual (CLIP + BM25)
+✔ Interface Streamlit funcional
+✔ Cache de modelos para evitar recargas
+✔ Tratamento robusto de vídeos sem áudio
+✔ Pipeline incremental (pula vídeos já indexados)
+✔ Metadados enriquecidos com taxonomia ActivityNet
 
----
+Este projeto demonstra um sistema completo de Content‑Based Video Retrieval com suporte a múltiplas modalidades e busca híbrida, pronto para ser estendido e integrado a aplicações reais.
 
 

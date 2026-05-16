@@ -1,15 +1,19 @@
-import os
-import subprocess
-import random
+import io
 import json
+import os
+import random
+import subprocess
+import urllib.request
 
 import numpy as np
+import torch
 from elasticsearch import Elasticsearch, helpers
-from scenedetect import open_video, SceneManager
+from PIL import Image
+from scenedetect import SceneManager, open_video
 from scenedetect.detectors import ContentDetector
 
-import keyframes as ky
 import embeddings as emb
+import keyframes as ky
 from logger import setup_logger
 
 np.float_ = np.float64
@@ -45,6 +49,95 @@ def load_activitynet(json_path: str) -> dict:
 
 
 # ==============================================================================
+# Taxonomia: nodeName → parentName
+# ==============================================================================
+def build_taxonomy_lookup(json_path: str) -> dict[str, str]:
+    with open(json_path) as f:
+        data = json.load(f)
+
+    lookup: dict[str, str] = {}
+    for node in data.get("taxonomy", []):
+        node_name   = node.get("nodeName", "")
+        parent_name = node.get("parentName", "")
+        if node_name:
+            lookup[node_name] = parent_name
+
+    return lookup
+
+
+def get_feature_categorias(label: str, taxonomy_lookup: dict[str, str]) -> str:
+    if not label:
+        return ""
+    parent = taxonomy_lookup.get(label, "")
+    return f"{label} > {parent}" if parent else label
+
+def build_text_metadata(label: str, title: str, taxonomy_lookup: dict) -> tuple[str, str]:
+    """Gera (feature_desc, keywords) combinando label, taxonomia e título."""
+    parent = taxonomy_lookup.get(label, "")
+    if parent:
+        feature_desc = f"Video about {label} (category: {parent}). Title: {title}" if title else f"Video about {label} (category: {parent})."
+        keywords = f"{label}, {parent}, {title}" if title else f"{label}, {parent}"
+    else:
+        feature_desc = f"Video about {label}. Title: {title}" if title else f"Video about {label}."
+        keywords = f"{label}, {title}" if title else label
+    return feature_desc, keywords
+
+
+# ==============================================================================
+# Thumbnail — embedding via URL pública do YouTube
+# ==============================================================================
+def fetch_thumbnail_embedding(
+    video_id:   str,
+    model,
+    preprocess,
+    device:     str,
+) -> np.ndarray | None:
+    resolutions = ["maxresdefault", "sddefault", "hqdefault", "mqdefault"]
+
+    for res in resolutions:
+        url = f"https://img.youtube.com/vi/{video_id}/{res}.jpg"
+        try:
+            with urllib.request.urlopen(url, timeout=10) as resp:
+                img_bytes = resp.read()
+
+            image  = Image.open(io.BytesIO(img_bytes)).convert("RGB")
+            tensor = preprocess(image).unsqueeze(0).to(device)
+
+            with torch.no_grad():
+                embedding = model.encode_image(tensor)
+
+            embedding = embedding / embedding.norm(dim=-1, keepdim=True)
+            return embedding.cpu().numpy().flatten()
+
+        except Exception:
+            continue
+
+    logger.warning(f"Thumbnail não disponível para {video_id}.")
+    return None
+
+
+# ==============================================================================
+# Título do vídeo via yt-dlp (sem baixar o vídeo)
+# ==============================================================================
+def fetch_video_title(video_id: str) -> str:
+    url = f"https://www.youtube.com/watch?v={video_id}"
+    try:
+        result = subprocess.run(
+            ["yt-dlp", "--get-title", "--no-playlist", url],
+            capture_output=True,
+            text=True,
+            timeout=15,
+        )
+        title = result.stdout.strip()
+        if title:
+            logger.info(f"Título obtido para {video_id}: '{title}'")
+        return title
+    except Exception as e:
+        logger.warning(f"Não foi possível obter título para {video_id}: {e}")
+        return ""
+
+
+# ==============================================================================
 # Download de vídeo do YouTube via yt-dlp
 # ==============================================================================
 def download_video(video_id: str, output_dir: str) -> str | None:
@@ -73,7 +166,6 @@ def download_video(video_id: str, output_dir: str) -> str | None:
 # Detecção de cenas
 # ==============================================================================
 def detect_scenes(video_path: str, threshold: float = 30.0) -> list[tuple[float, float]]:
-    """Retorna lista de (start_sec, end_sec) para cada cena detectada."""
     video         = open_video(video_path)
     scene_manager = SceneManager()
     scene_manager.add_detector(ContentDetector(threshold=threshold))
@@ -101,56 +193,97 @@ def connect_elasticsearch(
 
 
 # ==============================================================================
-# Criar índice com mapeamento HNSW
+# Criar índice com mapeamento HNSW (inclui suporte a modality)
 # ==============================================================================
-def create_index(
-    es,
-    index_name: str = "video_index",
-    dims:       int = 512,
-) -> None:
+def create_index(es, index_name="video_index", dims=512):
     if es.indices.exists(index=index_name):
         print(f"Índice '{index_name}' já existe — nenhuma ação necessária.")
         return
 
-    mapping = {
-        "mappings": {
-            "properties": {
-                "video_id":      {"type": "keyword"},
-                "scene_index":   {"type": "integer"},  # qual cena no vídeo
-                "part_index":    {"type": "integer"},  # 0, 1 ou 2 (terço da cena)
-                "timestamp_sec": {"type": "float"},
-                "center_frame":  {"type": "integer"},
-                "embedding": {
-                    "type":        "dense_vector",
-                    "dims":        dims,
-                    "index":       True,
-                    "similarity":  "cosine",
-                    "index_options": {
-                        "type":            "hnsw",
-                        "m":               32,
-                        "ef_construction": 200,
-                    },
-                },
+    settings = {
+        "analysis": {
+            "analyzer": {
+                "video_text_analyzer": {
+                    "type": "standard",
+                    "stopwords": "_english_"
+                }
             }
         }
     }
 
-    es.indices.create(index=index_name, body=mapping)
-    print(f"Índice '{index_name}' criado com {dims} dimensões.")
+    mapping = {
+        "mappings": {
+            "properties": {
+                "video_id":          {"type": "keyword"},
+                "title":             {"type": "text", "analyzer": "video_text_analyzer"},
+                "scene_index":       {"type": "integer"},
+                "part_index":        {"type": "integer"},
+                "timestamp_sec":     {"type": "float"},
+                "center_frame":      {"type": "integer"},
+                "modality":          {"type": "keyword"},
+
+                # Campos de texto para busca
+                "feature_desc":      {"type": "text", "analyzer": "video_text_analyzer"},
+                "keywords":          {"type": "text", "analyzer": "video_text_analyzer"},
+                "feature_categorias": {"type": "keyword"},  # mantenha para filtros exatos
+
+                # Embedding da thumbnail (já existente)
+                "feature_thumb": {
+                    "type": "dense_vector",
+                    "dims": dims,
+                    "index": True,
+                    "similarity": "cosine",
+                    "index_options": {
+                        "type": "hnsw",
+                        "m": 32,
+                        "ef_construction": 200
+                    }
+                },
+
+                # Embedding principal (vídeo ou áudio)
+                "embedding": {
+                    "type": "dense_vector",
+                    "dims": dims,
+                    "index": True,
+                    "similarity": "cosine",
+                    "index_options": {
+                        "type": "hnsw",
+                        "m": 32,
+                        "ef_construction": 200
+                    }
+                }
+            }
+        }
+    }
+
+    es.indices.create(index=index_name, settings=settings, body=mapping)
+    print(f"Índice '{index_name}' criado com suporte a texto.")
 
 
 # ==============================================================================
-# Indexar embeddings em bulk
+# Indexar embeddings em bulk (aceita modality)
 # ==============================================================================
 def index_embeddings_bulk(
     es,
-    embeddings: list[dict],
-    index_name: str = "video_index",
-    video_id:   str = "video_1",
+    embeddings:         list[dict],
+    index_name:         str                = "video_index",
+    video_id:           str                = "video_1",
+    title:              str                = "",
+    feature_categorias: str                = "",
+    feature_desc:       str                = "",
+    keywords:           str                = "",          # ← novo parâmetro
+    feature_thumb:      np.ndarray | None  = None,
+    modality:           str                = "video",
 ) -> None:
     if not embeddings:
         print(f"[WARN] Nenhum embedding para indexar (video_id={video_id}).")
         return
+
+    thumb_list = (
+        feature_thumb.tolist()
+        if isinstance(feature_thumb, np.ndarray)
+        else feature_thumb
+    )
 
     def generate_actions():
         for item in embeddings:
@@ -159,19 +292,30 @@ def index_embeddings_bulk(
                 if isinstance(item["embedding"], np.ndarray)
                 else item["embedding"]
             )
-            # _id único e determinístico: video + cena + parte
-            doc_id = f"{video_id}_s{item.get('scene_index', 0)}_p{item['part_index']}"
+            # Gera ID único: video_id + modalidade + cena + parte
+            doc_id = f"{video_id}_{modality}_s{item.get('scene_index', 0)}_p{item['part_index']}"
+
+            source = {
+                "video_id":           video_id,
+                "title":              title,
+                "scene_index":        item.get("scene_index", 0),
+                "part_index":         item["part_index"],
+                "timestamp_sec":      item["timestamp_sec"],
+                "center_frame":       item.get("center_frame", -1),  # áudio pode não ter
+                "modality":           modality,
+                "embedding":          vector,
+                "feature_categorias": feature_categorias,
+                "feature_desc":       feature_desc,
+                "keywords":     keywords, 
+            }
+
+            if thumb_list is not None and modality == "video":
+                source["feature_thumb"] = thumb_list
+
             yield {
                 "_index": index_name,
                 "_id":    doc_id,
-                "_source": {
-                    "video_id":      video_id,
-                    "scene_index":   item.get("scene_index", 0),
-                    "part_index":    item["part_index"],
-                    "timestamp_sec": item["timestamp_sec"],
-                    "center_frame":  item["center_frame"],
-                    "embedding":     vector,
-                },
+                "_source": source,
             }
 
     success, errors = helpers.bulk(
@@ -183,7 +327,7 @@ def index_embeddings_bulk(
         stats_only=False,
     )
 
-    print(f"Indexados {success} documentos para '{video_id}'.")
+    print(f"Indexados {success} documentos ({modality}) para '{video_id}'.")
     if errors:
         print(f"[WARN] {len(errors)} erro(s) durante a indexação:")
         for err in errors[:5]:
@@ -191,46 +335,49 @@ def index_embeddings_bulk(
 
 
 # ==============================================================================
-# Busca por similaridade (kNN)
+# Atualizar feature_desc após geração (update parcial sem re-indexar)
 # ==============================================================================
-def search_similar(
+def update_feature_desc(
     es,
-    query_embedding: np.ndarray,
-    index_name:      str        = "video_index",
-    video_id:        str | None = None,
-    k:               int        = 10,
-) -> list[dict]:
-    norm = np.linalg.norm(query_embedding)
-    if norm == 0:
-        raise ValueError("query_embedding é um vetor nulo — impossível normalizar.")
-    query_vector = (query_embedding / norm).tolist()
-
-    body: dict = {
-        "knn": {
-            "field":          "embedding",
-            "query_vector":   query_vector,
-            "k":              k,
-            "num_candidates": k * 10,
+    video_id:    str,
+    description: str,
+    index_name:  str = "video_index",
+) -> None:
+    es.update_by_query(
+        index=index_name,
+        body={
+            "script": {
+                "source": "ctx._source.feature_desc = params.desc",
+                "params": {"desc": description},
+            },
+            "query": {"term": {"video_id": video_id}},
         },
-        "size": k,
-    }
+        wait_for_completion=True,
+    )
+    logger.info(f"feature_desc atualizado para {video_id}.")
 
-    if video_id is not None:
-        body["knn"]["filter"] = {"term": {"video_id": video_id}}
 
-    response = es.search(index=index_name, body=body)
-
-    return [
-        {
-            "score":         hit["_score"],
-            "video_id":      hit["_source"]["video_id"],
-            "scene_index":   hit["_source"].get("scene_index"),
-            "part_index":    hit["_source"].get("part_index"),
-            "timestamp_sec": hit["_source"]["timestamp_sec"],
-            "center_frame":  hit["_source"]["center_frame"],
-        }
-        for hit in response["hits"]["hits"]
-    ]
+# ==============================================================================
+# Atualizar title após indexação (update parcial sem re-indexar)
+# ==============================================================================
+def update_title(
+    es,
+    video_id:   str,
+    title:      str,
+    index_name: str = "video_index",
+) -> None:
+    es.update_by_query(
+        index=index_name,
+        body={
+            "script": {
+                "source": "ctx._source.title = params.title",
+                "params": {"title": title},
+            },
+            "query": {"term": {"video_id": video_id}},
+        },
+        wait_for_completion=True,
+    )
+    logger.info(f"title atualizado para {video_id}: '{title}'")
 
 
 # ==============================================================================
@@ -245,19 +392,36 @@ def delete_index(es, index_name: str = "video_index") -> None:
 
 
 # ==============================================================================
-# Processar um único vídeo
-# Cada corte é dividido em 3 partes → 3 embeddings por cena
+# Processar um único vídeo (com suporte a áudio)
 # ==============================================================================
 def process_video(
-    video_path: str,
-    video_id:   str,
-    model,
-    preprocess,
+    video_path:      str,
+    video_id:        str,
+    clip_model,
+    clip_preprocess,
+    clap_model,
     device,
     es,
-    n_parts: int = 4,
+    taxonomy_lookup: dict[str, str] = {},
+    label:           str            = "",
+    title:           str            = "",
 ) -> None:
-    logger.info(f"🎬 Processando {video_id}...")
+    logger.info(f"Processando {video_id}...")
+
+    # ── Campos de feature ──────────────────────────────────────────────────
+    feature_categorias = get_feature_categorias(label, taxonomy_lookup)
+    feature_desc, keywords = build_text_metadata(label, title, taxonomy_lookup)
+
+    feature_thumb_vec = fetch_thumbnail_embedding(video_id, clip_model, clip_preprocess, device)
+
+    if not title:
+        title = fetch_video_title(video_id)
+
+    if feature_thumb_vec is not None:
+        logger.info(f"Thumbnail embutida para {video_id}.")
+    else:
+        logger.warning(f"Thumbnail indisponível para {video_id}.")
+    # ────────────────────────────────────────────────────────────────────────
 
     try:
         scenes = detect_scenes(video_path)
@@ -265,7 +429,6 @@ def process_video(
         logger.warning(f"Falha na detecção de cenas de {video_id}: {e}. Usando vídeo inteiro.")
         scenes = []
 
-    # Fallback: trata o vídeo inteiro como uma única cena
     if not scenes:
         import cv2
         cap   = cv2.VideoCapture(video_path)
@@ -276,62 +439,107 @@ def process_video(
 
     logger.info(f"Cenas detectadas: {len(scenes)}")
 
-    all_embeddings = []
-
+    # Embeddings de vídeo (CLIP)
+    all_video_embs = []
     for scene_idx, (start, end) in enumerate(scenes):
         if end - start < 1.0:
             continue
 
         try:
-            parts = ky.split_scene_into_parts(
-                video_path,
-                start_time=start,
-                end_time=end,
-                n_parts=n_parts,
-            )
+            segments = ky.split_scene_into_segments(
+            video_path,
+            start_time=start,
+            end_time=end,
+            max_frames_per_segment=45,   # você pode tornar isso um argumento de process_video se quiser
+        )
         except Exception as e:
             logger.warning(f"Erro ao dividir cena {scene_idx} [{start:.2f}s–{end:.2f}s]: {e}")
             continue
 
-        for part in parts:
+        for seg in segments:
             try:
                 vector = emb.embed_window(
-                    part["frames"],
-                    model,
-                    preprocess,
+                    seg["frames"],
+                    clip_model,
+                    clip_preprocess,
                     device,
                     method="mean",
                 )
-                all_embeddings.append({
+                all_video_embs.append({
                     "scene_index":   scene_idx,
-                    "part_index":    part["part_index"],
-                    "timestamp_sec": part["timestamp_sec"],
-                    "center_frame":  part["center_frame"],
+                    "part_index":    seg.get("segment_index", 0),   # se sua função retornar um índice de segmento
+                    "timestamp_sec": seg["timestamp_sec"],
+                    "center_frame":  seg["center_frame"],
                     "embedding":     vector,
                 })
             except Exception as e:
-                logger.warning(
-                    f"Erro ao embeddar cena {scene_idx} parte {part['part_index']}: {e}"
-                )
+                logger.warning(f"Erro ao segmentar cena {scene_idx} [{start:.2f}s–{end:.2f}s]: {e}")
 
-    if not all_embeddings:
-        logger.error(f"Nenhum embedding gerado para {video_id}. Pulando.")
-        return
 
-    logger.info(
-        f"Embeddings gerados: {len(all_embeddings)} "
-        f"({len(scenes)} cenas × {n_parts} partes)"
-    )
 
-    emb_dir = "./data/embeddings"
-    os.makedirs(emb_dir, exist_ok=True)
-    emb.save_embeddings_json(
-        all_embeddings,
-        path=os.path.join(emb_dir, f"{video_id}.json"),
-    )
+    if all_video_embs:
+        logger.info(
+            f"Embeddings de vídeo gerados: {len(all_video_embs)} "
+            f"({len(scenes)} cenas segmentadas)"
+        )
 
-    index_embeddings_bulk(es, all_embeddings, index_name="video_index", video_id=video_id)
-    logger.info(f"✅ Indexado: {video_id}")
+        emb.save_embeddings_json(
+            all_video_embs,
+            path=os.path.join("./data/embeddings", f"{video_id}_video.json"),
+        )
+
+        index_embeddings_bulk(
+            es,
+            all_video_embs,
+            index_name="video_index",
+            video_id=video_id,
+            title=title,
+            feature_categorias=feature_categorias,
+            feature_desc=feature_desc,
+            keywords=keywords,
+            feature_thumb=feature_thumb_vec,
+            modality="video",
+        )
+
+    # Embeddings de áudio (CLAP)p
+    # Só geramos se o vídeo tiver faixa de áudio (a função extract_audio_from_video
+    # pode falhar, mas tratamos internamente)
+    try:
+        audio_embs = emb.generate_audio_embeddings_from_scenes(
+            video_path=video_path,
+            scenes=scenes,
+            clap_model=clap_model,
+            device=device,
+        )
+        # Ajusta scene_index (a função retorna scene como tupla; precisamos do índice)
+        # Vamos mapear as tuplas de volta para índices
+        scene_map = {scene: idx for idx, scene in enumerate(scenes)}
+        for ae in audio_embs:
+            ae["scene_index"] = scene_map.get(ae["scene"], -1)
+            # center_frame não se aplica ao áudio, manteremos -1
+
+        logger.info(f"Embeddings de áudio gerados: {len(audio_embs)}")
+        if audio_embs:
+            emb.save_embeddings_json(
+                audio_embs,
+                path=os.path.join("./data/embeddings", f"{video_id}_audio.json"),
+            )
+            index_embeddings_bulk(
+                es,
+                audio_embs,
+                index_name="video_index",
+                video_id=video_id,
+                title=title,
+                feature_categorias=feature_categorias,
+                feature_desc=feature_desc,
+                keywords=keywords,
+                feature_thumb=feature_thumb_vec,  # thumb é visual, mas não atrapalha
+                modality="audio",
+            )
+    except Exception as e:
+        logger.warning(f"Falha ao processar áudio para {video_id}: {e}")
+
+    logger.info(f"Indexado: {video_id} (vídeo + áudio)")
 
 
 # ==============================================================================
@@ -349,7 +557,16 @@ def already_indexed(es, video_id: str) -> bool:
 # ==============================================================================
 # Processar todos os vídeos locais
 # ==============================================================================
-def process_local_videos(video_dir: str, model, preprocess, device, es) -> None:
+def process_local_videos(
+    video_dir:       str,
+    clip_model,
+    clip_preprocess,
+    clap_model,
+    device,
+    es,
+    taxonomy_lookup: dict[str, str] = {},
+    anet_database:   dict           = {},
+) -> None:
     for filename in sorted(os.listdir(video_dir)):
         if not filename.endswith(".mp4"):
             continue
@@ -361,8 +578,28 @@ def process_local_videos(video_dir: str, model, preprocess, device, es) -> None:
             logger.info(f"{video_id} já indexado — pulando.")
             continue
 
+        label = ""
+        title = ""
+        if video_id in anet_database:
+            entry       = anet_database[video_id]
+            annotations = entry.get("annotations", [])
+            if annotations:
+                label = annotations[0].get("label", "")
+            title = entry.get("url", "")
+
         try:
-            process_video(video_path, video_id, model, preprocess, device, es)
+            process_video(
+                video_path,
+                video_id,
+                clip_model,
+                clip_preprocess,
+                clap_model,
+                device,
+                es,
+                taxonomy_lookup=taxonomy_lookup,
+                label=label,
+                title=title,
+            )
         except Exception as e:
             logger.error(f"Erro fatal no vídeo {video_id}: {e}")
 

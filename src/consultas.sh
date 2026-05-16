@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "🚀 Iniciando pipeline de vídeos..."
+echo "Iniciando pipeline de vídeos..."
 
 # ==============================
 # IR PARA RAIZ DO PROJETO
@@ -10,33 +10,33 @@ cd "$(dirname "$0")/.." || exit
 # ==============================
 # 1. Subir Docker (Elasticsearch)
 # ==============================
-echo "🐳 Subindo Elasticsearch via Docker..."
+echo "Subindo Elasticsearch via Docker..."
 docker-compose -f docker/docker-compose.yml up -d
 
 # ==============================
 # 2. Esperar Elasticsearch iniciar
 # ==============================
-echo "⏳ Aguardando Elasticsearch iniciar..."
+echo "Aguardando Elasticsearch iniciar..."
 
 until curl -s http://localhost:9200 >/dev/null; do
   echo "Esperando Elasticsearch..."
   sleep 5
 done
 
-echo "✅ Elasticsearch está pronto!"
+echo "Elasticsearch está pronto!"
 
 # ==============================
 # 4. Ativar ambiente virtual (se existir)
 # ==============================
 if [ -d ".venv" ]; then
-  echo "🔧 Ativando ambiente virtual..."
+  echo "Ativando ambiente virtual..."
   source .venv/bin/activate
 fi
 
 # ==============================
 # 6. Rodar pipeline
 # ==============================
-echo "🎬 Executando main_search.py..."
+echo "Executando main_search.py..."
 python src/main_search.py
 
-echo "🎉 Pipeline finalizado!"
+echo "Pipeline finalizado!"

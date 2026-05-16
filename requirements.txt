@@ -5,29 +5,36 @@ pandas
 # Processamento de vídeo
 opencv-python
 Pillow
-scenedetect[opencv] # para detecção de cena
+scenedetect[opencv]
 
 # Deep Learning / Embeddings
 torch
 torchvision
+torchaudio
 ftfy
 regex
 tqdm
 
-# CLIP (OpenAI) - opcional, mas recomendado para embeddings semânticos
-# pode exigir git instalado
+# CLIP (OpenAI)
 git+https://github.com/openai/CLIP.git
 
-# Áudio (opcional - multimodal)
-librosa
-soundfile
+# CLAP (áudio multimodal)
+laion-clap
 
-# Elasticsearch (cliente Python)
+# Elasticsearch
 elasticsearch==8.12.0
+
+# Interface web (opcional, mas útil para o frontend)
+streamlit
 
 # Utilidades
 scikit-learn
+transformers
 
-# Dataset
-fsspec<=2025.10.0 # para evitar conflitos
+# Dataset / Download
+fsspec<=2025.10.0
 yt-dlp
+
+# Áudio (garantia extra)
+librosa
+soundfile

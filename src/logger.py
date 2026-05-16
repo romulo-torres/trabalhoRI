@@ -2,7 +2,7 @@ import logging
 import os
 
 
-def setup_logger(name="pipeline", log_file="../logs/pipeline.log", level=logging.INFO):
+def setup_logger(name="pipeline", log_file="./logs/pipeline.log", level=logging.INFO):
     os.makedirs(os.path.dirname(log_file), exist_ok=True)
 
     logger = logging.getLogger(name)

@@ -247,3 +247,151 @@ def search_by_embeddings(
 
     ranked = sorted(scores, key=lambda x: x[1], reverse=True)
     return ranked[:top_k]
+
+
+def search_hybrid_text_vector(
+    es,
+    query_vector: np.ndarray,          # embedding da consulta (vídeo ou áudio)
+    query_text: str,                   # texto da consulta (ex.: "cooking")
+    index_name: str = "video_index",
+    top_k: int = 10,
+    weight_vector: float = 0.6,
+    weight_text: float = 0.4,
+    modality: str = "video",           # para filtrar
+) -> List[Tuple[str, float]]:
+    """
+    Combina similaridade de vetor (kNN) com relevância textual (BM25).
+    Retorna lista de (video_id, score) ordenada.
+    """
+    # 1. Busca vetorial
+    res_knn = es.search(
+        index=index_name,
+        body={
+            "knn": {
+                "field": "embedding",
+                "query_vector": query_vector.tolist(),
+                "k": top_k * 10,  # mais candidatos para depois re-ranquear
+                "num_candidates": 200,
+            },
+            "query": {"term": {"modality": modality}},
+            "_source": ["video_id"]
+        },
+        size=top_k * 10
+    )
+
+    # 2. Busca textual
+    res_text = es.search(
+        index=index_name,
+        body={
+            "query": {
+                "bool": {
+                    "must": [
+                        {"term": {"modality": modality}}
+                    ],
+                    "should": [
+                        {"match": {"feature_desc": {"query": query_text, "boost": 2}}},
+                        {"match": {"keywords": {"query": query_text, "boost": 1.5}}},
+                        {"match": {"title": {"query": query_text, "boost": 1}}},
+                    ],
+                    "minimum_should_match": 1
+                }
+            },
+            "_source": ["video_id"]
+        },
+        size=top_k * 10
+    )
+
+    # 3. Coleta scores por video_id
+    from collections import defaultdict
+    scores = defaultdict(float)
+
+    # Normalização: dividir pelo max score de cada lista para trazer para [0,1]
+    max_knn = max((hit["_score"] for hit in res_knn["hits"]["hits"]), default=1)
+    max_text = max((hit["_score"] for hit in res_text["hits"]["hits"]), default=1)
+
+    for hit in res_knn["hits"]["hits"]:
+        vid = hit["_source"]["video_id"]
+        scores[vid] += weight_vector * (hit["_score"] / max_knn)
+
+    for hit in res_text["hits"]["hits"]:
+        vid = hit["_source"]["video_id"]
+        scores[vid] += weight_text * (hit["_score"] / max_text)
+
+    # Ordena e retorna top_k
+    sorted_vids = sorted(scores.items(), key=lambda x: x[1], reverse=True)
+    return sorted_vids[:top_k]
+
+def search_hybrid(
+    es,
+    query_video_embeddings: list[dict],
+    query_audio_embeddings: list[dict],
+    index_name: str = "video_index",
+    top_k: int = 10,
+    weight_video: float = 0.5,
+    weight_audio: float = 0.5,
+) -> list[tuple[str, float]]:
+    """
+    Busca combinada por similaridade de vídeo e áudio.
+    Para cada embedding de consulta (vídeo e áudio), busca os vizinhos
+    no índice filtrando por modality. Acumula scores normalizados e
+    retorna os top_k video_id com maior score combinado.
+    """
+    from collections import defaultdict
+
+    score_video = defaultdict(float)
+    score_audio = defaultdict(float)
+    count_video = defaultdict(int)
+    count_audio = defaultdict(int)
+
+    # Busca por vídeo
+    for q in query_video_embeddings:
+        vector = q["embedding"].tolist() if isinstance(q["embedding"], np.ndarray) else q["embedding"]
+        res = es.search(
+            index=index_name,
+            body={
+                "knn": {
+                    "field": "embedding",
+                    "query_vector": vector,
+                    "k": 50,
+                    "num_candidates": 200,
+                },
+                "query": {"term": {"modality": "video"}},
+                "_source": ["video_id"],
+            },
+        )
+        for hit in res["hits"]["hits"]:
+            vid = hit["_source"]["video_id"]
+            score_video[vid] += hit["_score"]
+            count_video[vid] += 1
+
+    # Busca por áudio (só executa se houver embeddings de áudio)
+    for q in query_audio_embeddings:
+        vector = q["embedding"].tolist() if isinstance(q["embedding"], np.ndarray) else q["embedding"]
+        res = es.search(
+            index=index_name,
+            body={
+                "knn": {
+                    "field": "embedding",
+                    "query_vector": vector,
+                    "k": 50,
+                    "num_candidates": 200,
+                },
+                "query": {"term": {"modality": "audio"}},
+                "_source": ["video_id"],
+            },
+        )
+        for hit in res["hits"]["hits"]:
+            vid = hit["_source"]["video_id"]
+            score_audio[vid] += hit["_score"]
+            count_audio[vid] += 1
+
+    # Combinação: média dos scores por modalidade
+    combined = {}
+    all_vids = set(list(score_video.keys()) + list(score_audio.keys()))
+    for vid in all_vids:
+        avg_v = score_video[vid] / count_video[vid] if count_video[vid] > 0 else 0.0
+        avg_a = score_audio[vid] / count_audio[vid] if count_audio[vid] > 0 else 0.0
+        combined[vid] = weight_video * avg_v + weight_audio * avg_a
+
+    sorted_vids = sorted(combined.items(), key=lambda x: x[1], reverse=True)
+    return sorted_vids[:top_k]
