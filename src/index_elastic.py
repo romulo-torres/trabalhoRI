@@ -405,6 +405,8 @@ def process_video(
     taxonomy_lookup: dict[str, str] = {},
     label:           str            = "",
     title:           str            = "",
+    max_frames_per_segment: int = 45,      # novo argumento
+    segment_duration: float = 1.5,        # duração em segundos de cada segmento (45 frames / 30 fps = 1.5s)
 ) -> None:
     logger.info(f"Processando {video_id}...")
 
@@ -439,43 +441,53 @@ def process_video(
 
     logger.info(f"Cenas detectadas: {len(scenes)}")
 
-    # Embeddings de vídeo (CLIP)
-    all_video_embs = []
+    # ── 1. Extrair todos os segmentos (vídeo) de todas as cenas ─────────
+    all_segments = []   # cada elemento será um dict com: scene_index, segment_index, frames, timestamp_sec, center_frame
     for scene_idx, (start, end) in enumerate(scenes):
         if end - start < 1.0:
             continue
-
         try:
             segments = ky.split_scene_into_segments(
-            video_path,
-            start_time=start,
-            end_time=end,
-            max_frames_per_segment=45,   # você pode tornar isso um argumento de process_video se quiser
-        )
+                video_path,
+                start_time=start,
+                end_time=end,
+                max_frames_per_segment=max_frames_per_segment,
+            )
         except Exception as e:
-            logger.warning(f"Erro ao dividir cena {scene_idx} [{start:.2f}s–{end:.2f}s]: {e}")
+            logger.warning(f"Erro ao segmentar cena {scene_idx} [{start:.2f}s–{end:.2f}s]: {e}")
             continue
 
         for seg in segments:
-            try:
-                vector = emb.embed_window(
-                    seg["frames"],
-                    clip_model,
-                    clip_preprocess,
-                    device,
-                    method="mean",
-                )
-                all_video_embs.append({
-                    "scene_index":   scene_idx,
-                    "part_index":    seg.get("segment_index", 0),   # se sua função retornar um índice de segmento
-                    "timestamp_sec": seg["timestamp_sec"],
-                    "center_frame":  seg["center_frame"],
-                    "embedding":     vector,
-                })
-            except Exception as e:
-                logger.warning(f"Erro ao segmentar cena {scene_idx} [{start:.2f}s–{end:.2f}s]: {e}")
+            seg["scene_index"] = scene_idx
+            seg["segment_index"] = seg.get("segment_index", 0)   # a função retorna 'segment_index'
+            all_segments.append(seg)
 
+    if not all_segments:
+        logger.warning(f"Nenhum segmento gerado para {video_id}.")
+        return
 
+    # ── 2. Embeddings de vídeo (CLIP) ─────────────────────────────────────
+    all_video_embs = []
+    for seg in all_segments:
+        try:
+            vector = emb.embed_window(
+                seg["frames"],
+                clip_model,
+                clip_preprocess,
+                device,
+                method="mean",
+            )
+            all_video_embs.append({
+                "scene_index":   seg["scene_index"],
+                "part_index":    seg["segment_index"],   # chamamos de part_index no ES
+                "timestamp_sec": seg["timestamp_sec"],
+                "center_frame":  seg["center_frame"],
+                "embedding":     vector,
+            })
+        except Exception as e:
+            logger.warning(
+                f"Erro ao embeddar segmento cena {seg['scene_index']} segmento {seg['segment_index']}: {e}"
+            )
 
     if all_video_embs:
         logger.info(
@@ -501,22 +513,21 @@ def process_video(
             modality="video",
         )
 
-    # Embeddings de áudio (CLAP)p
-    # Só geramos se o vídeo tiver faixa de áudio (a função extract_audio_from_video
-    # pode falhar, mas tratamos internamente)
+    # ── 3. Embeddings de áudio (CLAP) ─────────────────────────────────────
     try:
-        audio_embs = emb.generate_audio_embeddings_from_scenes(
+        # Gera embeddings de áudio a partir dos mesmos segmentos (usando timestamps)
+        audio_embs = emb.generate_audio_embeddings_from_segments(
             video_path=video_path,
-            scenes=scenes,
+            segments=all_segments,          # mesma lista de segmentos
             clap_model=clap_model,
             device=device,
+            segment_duration=segment_duration,
         )
-        # Ajusta scene_index (a função retorna scene como tupla; precisamos do índice)
-        # Vamos mapear as tuplas de volta para índices
-        scene_map = {scene: idx for idx, scene in enumerate(scenes)}
-        for ae in audio_embs:
-            ae["scene_index"] = scene_map.get(ae["scene"], -1)
-            # center_frame não se aplica ao áudio, manteremos -1
+        # Herda os índices de cena e parte dos segmentos
+        for ae, seg in zip(audio_embs, all_segments):
+            ae["scene_index"] = seg["scene_index"]
+            ae["part_index"]  = seg["segment_index"]
+            ae["center_frame"] = -1   # áudio não tem frame central
 
         logger.info(f"Embeddings de áudio gerados: {len(audio_embs)}")
         if audio_embs:
@@ -533,7 +544,7 @@ def process_video(
                 feature_categorias=feature_categorias,
                 feature_desc=feature_desc,
                 keywords=keywords,
-                feature_thumb=feature_thumb_vec,  # thumb é visual, mas não atrapalha
+                feature_thumb=feature_thumb_vec,   # opcional, não usado em áudio
                 modality="audio",
             )
     except Exception as e:

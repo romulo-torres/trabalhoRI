@@ -10,6 +10,7 @@ import cv2
 import clip  # OpenAI CLIP
 import laion_clap  # CLAP
 import torchaudio
+import librosa
 
 import keyframes as ky
 
@@ -24,7 +25,7 @@ _device = None
 
 
 # ==============================
-# 1. Carregar modelo CLIP
+# Carregar modelo CLIP
 # ==============================
 # No início de embeddings.py, após os imports
 
@@ -72,7 +73,7 @@ def clear_model_cache():
     torch.cuda.empty_cache()  # libera memória GPU, se aplicável
 
 # ==============================
-# 2. Converter frame OpenCV → PIL
+# Converter frame OpenCV → PIL
 # ==============================
 def frame_to_pil(frame: np.ndarray) -> Image.Image:
     """OpenCV armazena em BGR; PIL espera RGB."""
@@ -81,7 +82,7 @@ def frame_to_pil(frame: np.ndarray) -> Image.Image:
 
 
 # ==============================
-# 3. Embedding de um único frame
+# Embedding de um único frame
 # ==============================
 def embed_frame(
     frame:      np.ndarray,
@@ -105,7 +106,7 @@ def embed_frame(
 
 
 # ==============================
-# 4. Embedding de uma janela (agregação de frames)
+# Embedding de uma janela (agregação de frames)
 # ==============================
 def embed_window(
     window,
@@ -148,7 +149,7 @@ def embed_window(
 
 
 # ==============================
-# 5. Gerar embeddings para todas as janelas (modo antigo, por keyframes)
+# Gerar embeddings para todas as janelas (modo antigo, por keyframes)
 # ==============================
 def generate_embeddings(
     windows:    list[dict],
@@ -185,7 +186,7 @@ def generate_embeddings(
 
 
 # ==============================
-# 5b. Gerar embeddings de vídeo a partir de cenas (modo novo)
+# Gerar embeddings de vídeo a partir de cenas (modo novo)
 # ==============================
 def generate_embeddings_from_scenes(
     video_path:  str,
@@ -234,7 +235,7 @@ def generate_embeddings_from_scenes(
 
 
 # ==============================
-# 6. Salvar embeddings em JSON (suporte a modality)
+# Salvar embeddings em JSON (suporte a modality)
 # ==============================
 def save_embeddings_json(embeddings: list[dict], path: str = "../data/embeddings.json") -> None:
     """
@@ -264,7 +265,7 @@ def save_embeddings_json(embeddings: list[dict], path: str = "../data/embeddings
 
 
 # ==============================
-# 7. Carregar embeddings do JSON (suporte a modality)
+# Carregar embeddings do JSON (suporte a modality)
 # ==============================
 def load_embeddings_json(path: str) -> list[dict]:
     """
@@ -287,7 +288,7 @@ def load_embeddings_json(path: str) -> list[dict]:
 #  NOVAS FUNÇÕES PARA ÁUDIO COM CLAP
 # ======================================================================
 
-# 8. Carregar modelo CLAP
+# Carregar modelo CLAP
 def load_clap_model(device: str | None = None):
     """
     Carrega o modelo CLAP (HTSAT-fused) e retorna o objeto modelo.
@@ -302,54 +303,86 @@ def load_clap_model(device: str | None = None):
     model.eval()
     return model, device
 
-
-# 9. Extrair áudio do vídeo (via ffmpeg + torchaudio)
+# Extrair áudio do vídeo (via ffmpeg + librosa)
 def extract_audio_from_video(video_path: str, sr: int = 16000):
-    """
-    Extrai a faixa de áudio do vídeo como um array numpy mono com sample rate `sr`.
-    Retorna (waveform_numpy, sample_rate).
-    Usa ffmpeg para conversão e torchaudio para leitura.
-    """
-    # Gera um arquivo temporário WAV
     tmp_fd, tmp_path = tempfile.mkstemp(suffix=".wav")
     os.close(tmp_fd)
     try:
-        # Comando ffmpeg: mono, 16kHz, 16-bit PCM
         subprocess.run([
             "ffmpeg", "-y", "-i", video_path,
             "-vn", "-acodec", "pcm_s16le", "-ar", str(sr), "-ac", "1",
             tmp_path
         ], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
-        # Carrega com torchaudio
-        waveform, sample_rate = torchaudio.load(tmp_path)
-        # waveform shape: [1, samples] -> numpy array 1D
-        audio_np = waveform.squeeze(0).numpy()
-        return audio_np, sample_rate
+        audio_np, _ = librosa.load(tmp_path, sr=sr, mono=True)
+        return audio_np, sr
     finally:
         if os.path.exists(tmp_path):
             os.unlink(tmp_path)
 
 
-# 10. Embedding de um segmento de áudio com CLAP
+# Embedding de um segmento de áudio com CLAP
 def embed_audio_segment(audio: np.ndarray, sr: int, clap_model, device: str) -> np.ndarray:
-    """
-    Gera embedding CLAP normalizado para um trecho de áudio.
-    `audio`: array numpy 1D com samples em float (faixa [-1, 1]).
-    Retorna vetor 512-d float32.
-    """
-    # O CLAP espera áudio como numpy array, float32, mono, com qualquer sample rate
-    # e internamente faz o resample para a taxa do modelo.
-    embedding = clap_model.get_audio_embedding_from_data(
-        x=audio.astype(np.float32),
-        sample_rate=sr,
-    )
-    # Já é normalizado, mas garantimos
+    # Reamostrar para 48000 Hz, que é a taxa esperada pelo CLAP
+    target_sr = 48000
+    if sr != target_sr:
+        audio = librosa.resample(audio, orig_sr=sr, target_sr=target_sr)
+    audio = audio.astype(np.float32)
+    embedding = clap_model.get_audio_embedding_from_data(x=audio)
     embedding = embedding / np.linalg.norm(embedding)
     return embedding.astype(np.float32)
 
 
-# 11. Gerar embeddings de áudio alinhados com as cenas
+# Gerar embeddings de áudio alinhados com os segmentos de vídeo
+def generate_audio_embeddings_from_segments(
+    video_path: str,
+    segments: list[dict],      # cada dict tem 'timestamp_sec' (centro) e duração implícita via segment_duration
+    clap_model,
+    device: str,
+    segment_duration: float = 1.5,
+    sr: int = 16000,
+) -> list[dict]:
+    full_audio, audio_sr = extract_audio_from_video(video_path, sr=sr)
+    results = []
+    for seg in segments:
+        t_center = seg["timestamp_sec"]
+        t_start = max(0, t_center - segment_duration / 2)
+        t_end   = t_center + segment_duration / 2
+        start_sample = int(t_start * audio_sr)
+        end_sample   = min(len(full_audio), int(t_end * audio_sr))
+        clip = full_audio[start_sample:end_sample]
+        if len(clip) == 0:
+            continue
+        try:
+            emb = embed_audio_segment(clip, audio_sr, clap_model, device)
+            results.append({
+                "embedding": emb,
+            })
+        except Exception as e:
+            print(f"[WARN] Audio embedding failed for segment at {t_center:.2f}s: {e}")
+    return results
+
+
+def embed_audio_segment(audio: np.ndarray, sr: int, clap_model, device: str) -> np.ndarray:
+    """
+    Gera embedding CLAP normalizado para um trecho de áudio.
+    `audio`: array numpy 1D com samples em float (faixa [-1, 1]).
+    `sr`: taxa de amostragem (não é usada na chamada porque o CLAP que temos
+          não aceita `sample_rate` – ele apenas recebe o array).
+    """
+    import librosa
+    target_sr = 48000
+    if sr != target_sr:
+        audio = librosa.resample(audio, orig_sr=sr, target_sr=target_sr)
+    # Converte para float32
+    audio = audio.astype(np.float32)
+    # Gera embedding (versão do CLAP que aceita apenas o array)
+    embedding = clap_model.get_audio_embedding_from_data(x=audio)
+    embedding = embedding / np.linalg.norm(embedding)
+    return embedding.astype(np.float32)
+
+
+# Gerar embeddings de áudio alinhados com as cenas
 def generate_audio_embeddings_from_scenes(
     video_path: str,
     scenes: list[tuple[float, float]],
@@ -403,6 +436,7 @@ def generate_audio_embeddings_from_scenes(
 
     return results
 
+# Gera os embeddings de áudio com base numa janela d etempo
 def generate_audio_embeddings_from_windows(
     video_path: str,
     windows: list[dict],      # lista de dicts com 'timestamp_sec'
