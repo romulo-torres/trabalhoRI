@@ -546,12 +546,42 @@ def process_video(
 # Verificar se vídeo já está indexado
 # ==============================================================================
 def already_indexed(es, video_id: str) -> bool:
-    res = es.search(
+    """
+    Retorna True se o vídeo já possui documentos de ambas as modalidades
+    (vídeo e áudio). Caso contrário, False, permitindo que seja reprocessado.
+    """
+    # Verifica se existe pelo menos um documento de vídeo
+    res_video = es.search(
         index="video_index",
-        query={"term": {"video_id": video_id}},
+        query={
+            "bool": {
+                "must": [
+                    {"term": {"video_id": video_id}},
+                    {"term": {"modality": "video"}}
+                ]
+            }
+        },
         size=1,
     )
-    return len(res["hits"]["hits"]) > 0
+    has_video = len(res_video["hits"]["hits"]) > 0
+
+    # Verifica se existe pelo menos um documento de áudio
+    res_audio = es.search(
+        index="video_index",
+        query={
+            "bool": {
+                "must": [
+                    {"term": {"video_id": video_id}},
+                    {"term": {"modality": "audio"}}
+                ]
+            }
+        },
+        size=1,
+    )
+    has_audio = len(res_audio["hits"]["hits"]) > 0
+
+    # Só considera indexado se tiver as duas modalidades
+    return has_video and has_audio
 
 
 # ==============================================================================
