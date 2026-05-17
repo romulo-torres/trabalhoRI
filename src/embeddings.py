@@ -323,11 +323,19 @@ def extract_audio_from_video(video_path: str, sr: int = 16000):
 
 # Embedding de um segmento de áudio com CLAP
 def embed_audio_segment(audio: np.ndarray, sr: int, clap_model, device: str) -> np.ndarray:
-    # Reamostrar para 48000 Hz, que é a taxa esperada pelo CLAP
+    import librosa
+    # Garante array 1D float32
+    audio = np.atleast_1d(np.asarray(audio, dtype=np.float32))
+    if audio.ndim != 1:
+        audio = audio.flatten()
+    # Se ficou muito curto, adiciona silêncio
+    if len(audio) < 2:
+        audio = np.pad(audio, (0, 2 - len(audio)), mode='constant')
+    # Reamostra para 48 kHz (esperado pelo CLAP)
     target_sr = 48000
     if sr != target_sr:
         audio = librosa.resample(audio, orig_sr=sr, target_sr=target_sr)
-    audio = audio.astype(np.float32)
+    audio = np.ascontiguousarray(audio, dtype=np.float32)
     embedding = clap_model.get_audio_embedding_from_data(x=audio)
     embedding = embedding / np.linalg.norm(embedding)
     return embedding.astype(np.float32)
@@ -351,7 +359,7 @@ def generate_audio_embeddings_from_segments(
         start_sample = int(t_start * audio_sr)
         end_sample   = min(len(full_audio), int(t_end * audio_sr))
         clip = full_audio[start_sample:end_sample]
-        if len(clip) == 0:
+        if len(clip) < 2:
             continue
         try:
             emb = embed_audio_segment(clip, audio_sr, clap_model, device)
@@ -365,75 +373,61 @@ def generate_audio_embeddings_from_segments(
 
 def embed_audio_segment(audio: np.ndarray, sr: int, clap_model, device: str) -> np.ndarray:
     """
-    Gera embedding CLAP normalizado para um trecho de áudio.
-    `audio`: array numpy 1D com samples em float (faixa [-1, 1]).
-    `sr`: taxa de amostragem (não é usada na chamada porque o CLAP que temos
-          não aceita `sample_rate` – ele apenas recebe o array).
+    Salva o segmento de áudio em um arquivo WAV temporário e usa
+    get_audio_embedding_from_filelist do CLAP para gerar o embedding.
     """
-    import librosa
-    target_sr = 48000
-    if sr != target_sr:
-        audio = librosa.resample(audio, orig_sr=sr, target_sr=target_sr)
-    # Converte para float32
-    audio = audio.astype(np.float32)
-    # Gera embedding (versão do CLAP que aceita apenas o array)
-    embedding = clap_model.get_audio_embedding_from_data(x=audio)
-    embedding = embedding / np.linalg.norm(embedding)
-    return embedding.astype(np.float32)
+    import tempfile
+    import soundfile as sf
+
+    # Garante que o áudio seja um array 1D float32
+    audio = np.asarray(audio, dtype=np.float32).flatten()
+    if len(audio) == 0:
+        raise ValueError("Segmento de áudio vazio.")
+
+    # Salva em arquivo temporário
+    tmp_fd, tmp_path = tempfile.mkstemp(suffix=".wav")
+    os.close(tmp_fd)
+    try:
+        sf.write(tmp_path, audio, sr)
+        embedding = clap_model.get_audio_embedding_from_filelist([tmp_path])
+        # get_audio_embedding_from_filelist retorna um array 2D (1, dim)
+        if embedding.ndim == 2:
+            embedding = embedding.flatten()
+        embedding = embedding / np.linalg.norm(embedding)
+        return embedding.astype(np.float32)
+    finally:
+        if os.path.exists(tmp_path):
+            os.unlink(tmp_path)
 
 
 # Gerar embeddings de áudio alinhados com as cenas
-def generate_audio_embeddings_from_scenes(
+def generate_audio_embeddings_from_segments(
     video_path: str,
-    scenes: list[tuple[float, float]],
+    segments: list[dict],
     clap_model,
     device: str,
-    n_parts: int = 4,
+    segment_duration: float = 1.5,
     sr: int = 16000,
 ) -> list[dict]:
-    """
-    Para cada cena, divide em `n_parts` intervalos iguais e gera
-    um embedding CLAP do segmento de áudio correspondente.
-    Retorna lista de dicts com:
-        - scene, part_index, timestamp_sec, embedding, modality="audio".
-    """
-    # Extrai o áudio completo
     full_audio, audio_sr = extract_audio_from_video(video_path, sr=sr)
-
     results = []
-    for scene_start, scene_end in scenes:
-        duration = scene_end - scene_start
-        part_dur = duration / n_parts
+    for seg in segments:
+        t_center = seg["timestamp_sec"]
+        t_start = max(0, t_center - segment_duration / 2)
+        t_end   = t_center + segment_duration / 2
+        start_sample = int(t_start * audio_sr)
+        end_sample   = min(len(full_audio), int(t_end * audio_sr))
+        clip = full_audio[start_sample:end_sample]
 
-        for i in range(n_parts):
-            t_start = scene_start + i * part_dur
-            t_end   = t_start + part_dur
+        # Descarta segmentos muito curtos (menos de 10 ms)
+        if len(clip) < int(0.01 * audio_sr):
+            continue
 
-            # Recorta o áudio
-            start_sample = int(t_start * audio_sr)
-            end_sample   = int(t_end * audio_sr)
-
-            # Evita ultrapassar o fim
-            if start_sample >= len(full_audio):
-                continue
-            end_sample = min(end_sample, len(full_audio))
-            clip = full_audio[start_sample:end_sample]
-
-            if len(clip) == 0:
-                continue
-
-            try:
-                emb = embed_audio_segment(clip, audio_sr, clap_model, device)
-                results.append({
-                    "scene":        (scene_start, scene_end),
-                    "part_index":   i,
-                    "timestamp_sec": t_start + part_dur/2,  # centro do segmento
-                    "embedding":    emb,
-                    "modality":     "audio",
-                })
-            except Exception as e:
-                print(f"[WARN] Audio embedding failed for scene {scene_start}-{scene_end}, part {i}: {e}")
-
+        try:
+            emb = embed_audio_segment(clip, audio_sr, clap_model, device)
+            results.append({"embedding": emb})
+        except Exception as e:
+            print(f"[WARN] Audio embedding failed for segment at {t_center:.2f}s: {e}")
     return results
 
 # Gera os embeddings de áudio com base numa janela d etempo

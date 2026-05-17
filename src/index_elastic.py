@@ -4,6 +4,7 @@ import os
 import random
 import subprocess
 import urllib.request
+import cv2
 
 import numpy as np
 import torch
@@ -432,7 +433,6 @@ def process_video(
         scenes = []
 
     if not scenes:
-        import cv2
         cap   = cv2.VideoCapture(video_path)
         fps   = cap.get(cv2.CAP_PROP_FPS) or 30.0
         total = cap.get(cv2.CAP_PROP_FRAME_COUNT)
@@ -515,19 +515,35 @@ def process_video(
 
     # ── 3. Embeddings de áudio (CLAP) ─────────────────────────────────────
     try:
-        # Gera embeddings de áudio a partir dos mesmos segmentos (usando timestamps)
+                # Gera embeddings de áudio a partir dos mesmos segmentos (usando timestamps)
         audio_embs = emb.generate_audio_embeddings_from_segments(
             video_path=video_path,
-            segments=all_segments,          # mesma lista de segmentos
+            segments=all_segments,
             clap_model=clap_model,
             device=device,
             segment_duration=segment_duration,
         )
-        # Herda os índices de cena e parte dos segmentos
-        for ae, seg in zip(audio_embs, all_segments):
-            ae["scene_index"] = seg["scene_index"]
-            ae["part_index"]  = seg["segment_index"]
-            ae["center_frame"] = -1   # áudio não tem frame central
+
+        # ⬇️ Enriquecimento seguro dos metadados
+        if len(audio_embs) == len(all_segments):
+            # Caso ideal: tamanhos iguais
+            for ae, seg in zip(audio_embs, all_segments):
+                ae["timestamp_sec"] = seg["timestamp_sec"]
+                ae["scene_index"]   = seg["scene_index"]
+                ae["part_index"]    = seg.get("segment_index", 0)
+                ae["center_frame"]  = -1
+        else:
+            # Fallback se os tamanhos diferirem (preenche com o que for possível)
+            logger.warning(
+                f"Tamanhos de audio_embs ({len(audio_embs)}) e all_segments ({len(all_segments)}) diferem. "
+                "Usando fallback para metadados."
+            )
+            for i, ae in enumerate(audio_embs):
+                seg = all_segments[i] if i < len(all_segments) else None
+                ae["timestamp_sec"] = seg["timestamp_sec"] if seg else 0.0
+                ae["scene_index"]   = seg["scene_index"]   if seg else -1
+                ae["part_index"]    = seg.get("segment_index", i) if seg else i
+                ae["center_frame"]  = -1
 
         logger.info(f"Embeddings de áudio gerados: {len(audio_embs)}")
         if audio_embs:
