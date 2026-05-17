@@ -11,6 +11,7 @@ scenedetect[opencv]
 torch
 torchvision
 torchaudio
+torchcodec
 ftfy
 regex
 tqdm
