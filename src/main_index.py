@@ -3,12 +3,14 @@ import embeddings as emb
 from logger import setup_logger
 import os
 import time
+import gc 
+import torch
 
 logger = setup_logger()
 
 
 def main_index() -> None:
-    MAX_VIDEOS = 100          # <-- processar no máximo 100 vídeos
+    MAX_VIDEOS = 2000          # <-- processar no máximo 100 vídeos
 
     logger.info("Conectando ao Elasticsearch...")
     es = ind.connect_elasticsearch()
@@ -88,7 +90,6 @@ def main_index() -> None:
         else:
             logger.info(f"Baixando {video_id}...")
             video_path = ind.download_video(video_id, video_dir)
-            time.sleep(2)
 
         if video_path is None:
             logger.warning(f"Não foi possível obter o vídeo {video_id}.")
@@ -109,6 +110,10 @@ def main_index() -> None:
             )
         except Exception as e:
             logger.error(f"Erro no vídeo {video_id}: {e}")
+        finally:
+            gc.collect()
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
 
     logger.info("Indexação concluída.")
 

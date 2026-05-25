@@ -21,6 +21,9 @@ np.float_ = np.float64
 
 logger = setup_logger()
 
+os.environ["OPENCV_LOG_LEVEL"] = "OFF"
+os.environ["OPENCV_FFMPEG_LOGLEVEL"] = "quiet"
+
 
 # ==============================================================================
 # ActivityNet — download do JSON de anotações
@@ -72,8 +75,8 @@ def get_feature_categorias(label: str, taxonomy_lookup: dict[str, str]) -> str:
     parent = taxonomy_lookup.get(label, "")
     return f"{label} > {parent}" if parent else label
 
+
 def build_text_metadata(label: str, title: str, taxonomy_lookup: dict) -> tuple[str, str]:
-    """Gera (feature_desc, keywords) combinando label, taxonomia e título."""
     parent = taxonomy_lookup.get(label, "")
     if parent:
         feature_desc = f"Video about {label} (category: {parent}). Title: {title}" if title else f"Video about {label} (category: {parent})."
@@ -139,28 +142,61 @@ def fetch_video_title(video_id: str) -> str:
 
 
 # ==============================================================================
-# Download de vídeo do YouTube via yt-dlp
+# Download de vídeo do YouTube via yt-dlp (com cookies do navegador)
 # ==============================================================================
-def download_video(video_id: str, output_dir: str) -> str | None:
+def download_video(
+    video_id:   str,
+    output_dir: str,
+    browser:    str = "firefox",
+) -> str | None:
     output_path = os.path.join(output_dir, f"{video_id}.mp4")
 
     if os.path.exists(output_path):
-        return output_path
+        if _is_valid_mp4(output_path):
+            return output_path
+        else:
+            logger.warning(f"{video_id} corrompido — removendo e rebaixando.")
+            os.remove(output_path)
 
     url = f"https://www.youtube.com/watch?v={video_id}"
-
     try:
         subprocess.run([
             "yt-dlp",
-            "-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/mp4",
+            "-f", "bestvideo[height<=480][ext=mp4]+bestaudio[ext=m4a]/best[height<=480][ext=mp4]",
             "--merge-output-format", "mp4",
+            "--cookies-from-browser", browser,
+            "--no-write-info-json",
+            "--no-write-thumbnail",
+            "--no-playlist",
+            "--retries", "5",
+            "--fragment-retries", "5",
             "-o", output_path,
             url,
         ], check=True)
-        return output_path
-    except Exception as e:
+        return output_path if os.path.exists(output_path) else None
+    except subprocess.CalledProcessError as e:
         logger.error(f"Falha ao baixar {video_id}: {e}")
         return None
+    except Exception as e:
+        logger.error(f"Erro inesperado ao baixar {video_id}: {e}")
+        return None
+
+
+def _is_valid_mp4(path: str) -> bool:
+    try:
+        result = subprocess.run([
+            "ffprobe", "-v", "error",
+            "-show_entries", "format=duration",
+            "-of", "default=noprint_wrappers=1:nokey=1",
+            path
+        ], capture_output=True, text=True, timeout=15)
+        if result.returncode != 0 or not result.stdout.strip():
+            return False
+        if os.path.getsize(path) < 10_000:
+            return False
+        return True
+    except Exception:
+        return False
 
 
 # ==============================================================================
@@ -194,7 +230,7 @@ def connect_elasticsearch(
 
 
 # ==============================================================================
-# Criar índice com mapeamento HNSW (inclui suporte a modality)
+# Criar índice com mapeamento HNSW
 # ==============================================================================
 def create_index(es, index_name="video_index", dims=512):
     if es.indices.exists(index=index_name):
@@ -215,43 +251,25 @@ def create_index(es, index_name="video_index", dims=512):
     mapping = {
         "mappings": {
             "properties": {
-                "video_id":          {"type": "keyword"},
-                "title":             {"type": "text", "analyzer": "video_text_analyzer"},
-                "scene_index":       {"type": "integer"},
-                "part_index":        {"type": "integer"},
-                "timestamp_sec":     {"type": "float"},
-                "center_frame":      {"type": "integer"},
-                "modality":          {"type": "keyword"},
-
-                # Campos de texto para busca
-                "feature_desc":      {"type": "text", "analyzer": "video_text_analyzer"},
-                "keywords":          {"type": "text", "analyzer": "video_text_analyzer"},
-                "feature_categorias": {"type": "keyword"},  # mantenha para filtros exatos
-
-                # Embedding da thumbnail (já existente)
+                "video_id":           {"type": "keyword"},
+                "title":              {"type": "text", "analyzer": "video_text_analyzer"},
+                "scene_index":        {"type": "integer"},
+                "part_index":         {"type": "integer"},
+                "timestamp_sec":      {"type": "float"},
+                "center_frame":       {"type": "integer"},
+                "modality":           {"type": "keyword"},
+                "feature_desc":       {"type": "text", "analyzer": "video_text_analyzer"},
+                "keywords":           {"type": "text", "analyzer": "video_text_analyzer"},
+                "feature_categorias": {"type": "keyword"},
                 "feature_thumb": {
-                    "type": "dense_vector",
-                    "dims": dims,
-                    "index": True,
+                    "type": "dense_vector", "dims": dims, "index": True,
                     "similarity": "cosine",
-                    "index_options": {
-                        "type": "hnsw",
-                        "m": 32,
-                        "ef_construction": 200
-                    }
+                    "index_options": {"type": "hnsw", "m": 32, "ef_construction": 200}
                 },
-
-                # Embedding principal (vídeo ou áudio)
                 "embedding": {
-                    "type": "dense_vector",
-                    "dims": dims,
-                    "index": True,
+                    "type": "dense_vector", "dims": dims, "index": True,
                     "similarity": "cosine",
-                    "index_options": {
-                        "type": "hnsw",
-                        "m": 32,
-                        "ef_construction": 200
-                    }
+                    "index_options": {"type": "hnsw", "m": 32, "ef_construction": 200}
                 }
             }
         }
@@ -262,19 +280,19 @@ def create_index(es, index_name="video_index", dims=512):
 
 
 # ==============================================================================
-# Indexar embeddings em bulk (aceita modality)
+# Indexar embeddings em bulk
 # ==============================================================================
 def index_embeddings_bulk(
     es,
     embeddings:         list[dict],
-    index_name:         str                = "video_index",
-    video_id:           str                = "video_1",
-    title:              str                = "",
-    feature_categorias: str                = "",
-    feature_desc:       str                = "",
-    keywords:           str                = "",          # ← novo parâmetro
-    feature_thumb:      np.ndarray | None  = None,
-    modality:           str                = "video",
+    index_name:         str               = "video_index",
+    video_id:           str               = "video_1",
+    title:              str               = "",
+    feature_categorias: str               = "",
+    feature_desc:       str               = "",
+    keywords:           str               = "",
+    feature_thumb:      np.ndarray | None = None,
+    modality:           str               = "video",
 ) -> None:
     if not embeddings:
         print(f"[WARN] Nenhum embedding para indexar (video_id={video_id}).")
@@ -293,7 +311,6 @@ def index_embeddings_bulk(
                 if isinstance(item["embedding"], np.ndarray)
                 else item["embedding"]
             )
-            # Gera ID único: video_id + modalidade + cena + parte
             doc_id = f"{video_id}_{modality}_s{item.get('scene_index', 0)}_p{item['part_index']}"
 
             source = {
@@ -302,22 +319,18 @@ def index_embeddings_bulk(
                 "scene_index":        item.get("scene_index", 0),
                 "part_index":         item["part_index"],
                 "timestamp_sec":      item["timestamp_sec"],
-                "center_frame":       item.get("center_frame", -1),  # áudio pode não ter
+                "center_frame":       item.get("center_frame", -1),
                 "modality":           modality,
                 "embedding":          vector,
                 "feature_categorias": feature_categorias,
                 "feature_desc":       feature_desc,
-                "keywords":     keywords, 
+                "keywords":           keywords,
             }
 
             if thumb_list is not None and modality == "video":
                 source["feature_thumb"] = thumb_list
 
-            yield {
-                "_index": index_name,
-                "_id":    doc_id,
-                "_source": source,
-            }
+            yield {"_index": index_name, "_id": doc_id, "_source": source}
 
     success, errors = helpers.bulk(
         es,
@@ -336,22 +349,14 @@ def index_embeddings_bulk(
 
 
 # ==============================================================================
-# Atualizar feature_desc após geração (update parcial sem re-indexar)
+# Atualizar feature_desc
 # ==============================================================================
-def update_feature_desc(
-    es,
-    video_id:    str,
-    description: str,
-    index_name:  str = "video_index",
-) -> None:
+def update_feature_desc(es, video_id: str, description: str, index_name: str = "video_index") -> None:
     es.update_by_query(
         index=index_name,
         body={
-            "script": {
-                "source": "ctx._source.feature_desc = params.desc",
-                "params": {"desc": description},
-            },
-            "query": {"term": {"video_id": video_id}},
+            "script": {"source": "ctx._source.feature_desc = params.desc", "params": {"desc": description}},
+            "query":  {"term": {"video_id": video_id}},
         },
         wait_for_completion=True,
     )
@@ -359,22 +364,14 @@ def update_feature_desc(
 
 
 # ==============================================================================
-# Atualizar title após indexação (update parcial sem re-indexar)
+# Atualizar title
 # ==============================================================================
-def update_title(
-    es,
-    video_id:   str,
-    title:      str,
-    index_name: str = "video_index",
-) -> None:
+def update_title(es, video_id: str, title: str, index_name: str = "video_index") -> None:
     es.update_by_query(
         index=index_name,
         body={
-            "script": {
-                "source": "ctx._source.title = params.title",
-                "params": {"title": title},
-            },
-            "query": {"term": {"video_id": video_id}},
+            "script": {"source": "ctx._source.title = params.title", "params": {"title": title}},
+            "query":  {"term": {"video_id": video_id}},
         },
         wait_for_completion=True,
     )
@@ -382,7 +379,7 @@ def update_title(
 
 
 # ==============================================================================
-# Deletar índice (utilitário)
+# Deletar índice
 # ==============================================================================
 def delete_index(es, index_name: str = "video_index") -> None:
     if es.indices.exists(index=index_name):
@@ -393,7 +390,11 @@ def delete_index(es, index_name: str = "video_index") -> None:
 
 
 # ==============================================================================
-# Processar um único vídeo (com suporte a áudio)
+# Processar um único vídeo
+# Lógica de cache:
+#   1. Se embeddings JSON já existem no disco → carrega direto (pula extração)
+#   2. Se não existem → extrai dos frames/áudio e salva
+#   3. Em ambos os casos → indexa no ES (se ainda não indexado)
 # ==============================================================================
 def process_video(
     video_path:      str,
@@ -403,28 +404,79 @@ def process_video(
     clap_model,
     device,
     es,
-    taxonomy_lookup: dict[str, str] = {},
-    label:           str            = "",
-    title:           str            = "",
-    max_frames_per_segment: int = 45,      # novo argumento
-    segment_duration: float = 1.5,        # duração em segundos de cada segmento (45 frames / 30 fps = 1.5s)
+    taxonomy_lookup:        dict[str, str] = {},
+    label:                  str            = "",
+    title:                  str            = "",
+    max_frames_per_segment: int            = 45,
+    segment_duration:       float          = 1.5,
+    embeddings_dir:         str            = "./data/embeddings",
 ) -> None:
+    import gc
+
     logger.info(f"Processando {video_id}...")
 
-    # ── Campos de feature ──────────────────────────────────────────────────
+    os.makedirs(embeddings_dir, exist_ok=True)
+
+    video_json_path = os.path.join(embeddings_dir, f"{video_id}_video.json")
+    audio_json_path = os.path.join(embeddings_dir, f"{video_id}_audio.json")
+
     feature_categorias = get_feature_categorias(label, taxonomy_lookup)
     feature_desc, keywords = build_text_metadata(label, title, taxonomy_lookup)
 
+    # ── Caso 1: embeddings já existem no disco ────────────────────────────
+    if os.path.exists(video_json_path) and os.path.exists(audio_json_path):
+        logger.info(f"{video_id}: embeddings encontrados no disco — carregando para indexar.")
+
+        with open(video_json_path) as f:
+            all_video_embs = json.load(f)
+        with open(audio_json_path) as f:
+            audio_embs = json.load(f)
+
+        # Converte listas de volta para numpy (necessário para index_embeddings_bulk)
+        for item in all_video_embs:
+            if isinstance(item["embedding"], list):
+                item["embedding"] = np.array(item["embedding"], dtype=np.float32)
+        for item in audio_embs:
+            if isinstance(item["embedding"], list):
+                item["embedding"] = np.array(item["embedding"], dtype=np.float32)
+
+        # Thumbnail ainda precisa ser gerada (não é salva em disco)
+        feature_thumb_vec = fetch_thumbnail_embedding(video_id, clip_model, clip_preprocess, device)
+
+        if not title:
+            title = fetch_video_title(video_id)
+            feature_desc, keywords = build_text_metadata(label, title, taxonomy_lookup)
+
+        logger.info(f"{video_id}: {len(all_video_embs)} emb. vídeo | {len(audio_embs)} emb. áudio")
+
+        index_embeddings_bulk(
+            es, all_video_embs, index_name="video_index",
+            video_id=video_id, title=title,
+            feature_categorias=feature_categorias,
+            feature_desc=feature_desc, keywords=keywords,
+            feature_thumb=feature_thumb_vec, modality="video",
+        )
+        index_embeddings_bulk(
+            es, audio_embs, index_name="video_index",
+            video_id=video_id, title=title,
+            feature_categorias=feature_categorias,
+            feature_desc=feature_desc, keywords=keywords,
+            feature_thumb=feature_thumb_vec, modality="audio",
+        )
+        logger.info(f"Indexado (cache): {video_id} (vídeo + áudio)")
+        return
+
+    # ── Caso 2: extrai do vídeo ───────────────────────────────────────────
     feature_thumb_vec = fetch_thumbnail_embedding(video_id, clip_model, clip_preprocess, device)
 
     if not title:
         title = fetch_video_title(video_id)
+        feature_desc, keywords = build_text_metadata(label, title, taxonomy_lookup)
 
     if feature_thumb_vec is not None:
         logger.info(f"Thumbnail embutida para {video_id}.")
     else:
         logger.warning(f"Thumbnail indisponível para {video_id}.")
-    # ────────────────────────────────────────────────────────────────────────
 
     try:
         scenes = detect_scenes(video_path)
@@ -441,8 +493,8 @@ def process_video(
 
     logger.info(f"Cenas detectadas: {len(scenes)}")
 
-    # ── 1. Extrair todos os segmentos (vídeo) de todas as cenas ─────────
-    all_segments = []   # cada elemento será um dict com: scene_index, segment_index, frames, timestamp_sec, center_frame
+    # Segmentação
+    all_segments = []
     for scene_idx, (start, end) in enumerate(scenes):
         if end - start < 1.0:
             continue
@@ -458,64 +510,44 @@ def process_video(
             continue
 
         for seg in segments:
-            seg["scene_index"] = scene_idx
-            seg["segment_index"] = seg.get("segment_index", 0)   # a função retorna 'segment_index'
+            seg["scene_index"]   = scene_idx
+            seg["segment_index"] = seg.get("segment_index", 0)
             all_segments.append(seg)
 
     if not all_segments:
         logger.warning(f"Nenhum segmento gerado para {video_id}.")
         return
 
-    # ── 2. Embeddings de vídeo (CLIP) ─────────────────────────────────────
+    # Embeddings de vídeo (CLIP)
     all_video_embs = []
     for seg in all_segments:
         try:
             vector = emb.embed_window(
-                seg["frames"],
-                clip_model,
-                clip_preprocess,
-                device,
-                method="mean",
+                seg["frames"], clip_model, clip_preprocess, device, method="mean",
             )
             all_video_embs.append({
                 "scene_index":   seg["scene_index"],
-                "part_index":    seg["segment_index"],   # chamamos de part_index no ES
+                "part_index":    seg["segment_index"],
                 "timestamp_sec": seg["timestamp_sec"],
                 "center_frame":  seg["center_frame"],
                 "embedding":     vector,
             })
         except Exception as e:
-            logger.warning(
-                f"Erro ao embeddar segmento cena {seg['scene_index']} segmento {seg['segment_index']}: {e}"
-            )
+            logger.warning(f"Erro ao embeddar segmento cena {seg['scene_index']}: {e}")
 
     if all_video_embs:
-        logger.info(
-            f"Embeddings de vídeo gerados: {len(all_video_embs)} "
-            f"({len(scenes)} cenas segmentadas)"
-        )
-
-        emb.save_embeddings_json(
-            all_video_embs,
-            path=os.path.join("./data/embeddings", f"{video_id}_video.json"),
-        )
-
+        logger.info(f"Embeddings de vídeo gerados: {len(all_video_embs)} ({len(scenes)} cenas)")
+        emb.save_embeddings_json(all_video_embs, path=video_json_path)
         index_embeddings_bulk(
-            es,
-            all_video_embs,
-            index_name="video_index",
-            video_id=video_id,
-            title=title,
+            es, all_video_embs, index_name="video_index",
+            video_id=video_id, title=title,
             feature_categorias=feature_categorias,
-            feature_desc=feature_desc,
-            keywords=keywords,
-            feature_thumb=feature_thumb_vec,
-            modality="video",
+            feature_desc=feature_desc, keywords=keywords,
+            feature_thumb=feature_thumb_vec, modality="video",
         )
 
-    # ── 3. Embeddings de áudio (CLAP) ─────────────────────────────────────
+    # Embeddings de áudio (CLAP)
     try:
-                # Gera embeddings de áudio a partir dos mesmos segmentos (usando timestamps)
         audio_embs = emb.generate_audio_embeddings_from_segments(
             video_path=video_path,
             segments=all_segments,
@@ -524,19 +556,15 @@ def process_video(
             segment_duration=segment_duration,
         )
 
-        # ⬇️ Enriquecimento seguro dos metadados
         if len(audio_embs) == len(all_segments):
-            # Caso ideal: tamanhos iguais
             for ae, seg in zip(audio_embs, all_segments):
                 ae["timestamp_sec"] = seg["timestamp_sec"]
                 ae["scene_index"]   = seg["scene_index"]
                 ae["part_index"]    = seg.get("segment_index", 0)
                 ae["center_frame"]  = -1
         else:
-            # Fallback se os tamanhos diferirem (preenche com o que for possível)
             logger.warning(
-                f"Tamanhos de audio_embs ({len(audio_embs)}) e all_segments ({len(all_segments)}) diferem. "
-                "Usando fallback para metadados."
+                f"Tamanhos de audio_embs ({len(audio_embs)}) e all_segments ({len(all_segments)}) diferem."
             )
             for i, ae in enumerate(audio_embs):
                 seg = all_segments[i] if i < len(all_segments) else None
@@ -547,24 +575,21 @@ def process_video(
 
         logger.info(f"Embeddings de áudio gerados: {len(audio_embs)}")
         if audio_embs:
-            emb.save_embeddings_json(
-                audio_embs,
-                path=os.path.join("./data/embeddings", f"{video_id}_audio.json"),
-            )
+            emb.save_embeddings_json(audio_embs, path=audio_json_path)
             index_embeddings_bulk(
-                es,
-                audio_embs,
-                index_name="video_index",
-                video_id=video_id,
-                title=title,
+                es, audio_embs, index_name="video_index",
+                video_id=video_id, title=title,
                 feature_categorias=feature_categorias,
-                feature_desc=feature_desc,
-                keywords=keywords,
-                feature_thumb=feature_thumb_vec,   # opcional, não usado em áudio
-                modality="audio",
+                feature_desc=feature_desc, keywords=keywords,
+                feature_thumb=feature_thumb_vec, modality="audio",
             )
     except Exception as e:
         logger.warning(f"Falha ao processar áudio para {video_id}: {e}")
+
+    # Libera memória após cada vídeo
+    gc.collect()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
 
     logger.info(f"Indexado: {video_id} (vídeo + áudio)")
 
@@ -573,41 +598,26 @@ def process_video(
 # Verificar se vídeo já está indexado
 # ==============================================================================
 def already_indexed(es, video_id: str) -> bool:
-    """
-    Retorna True se o vídeo já possui documentos de ambas as modalidades
-    (vídeo e áudio). Caso contrário, False, permitindo que seja reprocessado.
-    """
-    # Verifica se existe pelo menos um documento de vídeo
     res_video = es.search(
         index="video_index",
-        query={
-            "bool": {
-                "must": [
-                    {"term": {"video_id": video_id}},
-                    {"term": {"modality": "video"}}
-                ]
-            }
-        },
+        query={"bool": {"must": [
+            {"term": {"video_id": video_id}},
+            {"term": {"modality": "video"}}
+        ]}},
         size=1,
     )
     has_video = len(res_video["hits"]["hits"]) > 0
 
-    # Verifica se existe pelo menos um documento de áudio
     res_audio = es.search(
         index="video_index",
-        query={
-            "bool": {
-                "must": [
-                    {"term": {"video_id": video_id}},
-                    {"term": {"modality": "audio"}}
-                ]
-            }
-        },
+        query={"bool": {"must": [
+            {"term": {"video_id": video_id}},
+            {"term": {"modality": "audio"}}
+        ]}},
         size=1,
     )
     has_audio = len(res_audio["hits"]["hits"]) > 0
 
-    # Só considera indexado se tiver as duas modalidades
     return has_video and has_audio
 
 
@@ -646,16 +656,9 @@ def process_local_videos(
 
         try:
             process_video(
-                video_path,
-                video_id,
-                clip_model,
-                clip_preprocess,
-                clap_model,
-                device,
-                es,
-                taxonomy_lookup=taxonomy_lookup,
-                label=label,
-                title=title,
+                video_path, video_id,
+                clip_model, clip_preprocess, clap_model, device, es,
+                taxonomy_lookup=taxonomy_lookup, label=label, title=title,
             )
         except Exception as e:
             logger.error(f"Erro fatal no vídeo {video_id}: {e}")
@@ -671,7 +674,7 @@ def count_videos(video_dir: str) -> int:
 
 
 # ==============================================================================
-# Índices aleatórios fixos (utilitário de amostragem)
+# Índices aleatórios fixos
 # ==============================================================================
 def get_fixed_random_indices(
     n_samples: int = 10,
