@@ -2,6 +2,7 @@ import io
 import json
 import os
 import random
+import re
 import subprocess
 import urllib.request
 import cv2
@@ -121,24 +122,83 @@ def fetch_thumbnail_embedding(
 
 
 # ==============================================================================
-# Título do vídeo via yt-dlp (sem baixar o vídeo)
+# Metadados completos do vídeo via yt-dlp
 # ==============================================================================
-def fetch_video_title(video_id: str) -> str:
+def fetch_video_metadata(video_id: str) -> dict:
     url = f"https://www.youtube.com/watch?v={video_id}"
     try:
         result = subprocess.run(
-            ["yt-dlp", "--get-title", "--no-playlist", url],
+            ["yt-dlp", "--dump-json", "--no-playlist", url],
             capture_output=True,
             text=True,
-            timeout=15,
+            timeout=30,
         )
-        title = result.stdout.strip()
-        if title:
-            logger.info(f"Título obtido para {video_id}: '{title}'")
-        return title
+        if result.returncode != 0:
+            logger.warning(f"yt-dlp retornou erro para {video_id}: {result.stderr.strip()}")
+            return {}
+        data = json.loads(result.stdout)
+        return {
+            "title":       data.get("title", ""),
+            "description": data.get("description", ""),
+            "upload_date": data.get("upload_date", ""),   # formato "20240315"
+            "duration":    data.get("duration", 0),       # segundos
+            "view_count":  data.get("view_count", 0),
+            "like_count":  data.get("like_count", 0),
+            "channel":     data.get("uploader", ""),
+            "tags":        data.get("tags", []),
+            "categories":  data.get("categories", []),
+        }
     except Exception as e:
-        logger.warning(f"Não foi possível obter título para {video_id}: {e}")
-        return ""
+        logger.warning(f"Falha ao obter metadata de {video_id}: {e}")
+        return {}
+
+
+# ==============================================================================
+# Legendas em inglês via yt-dlp
+# ==============================================================================
+def fetch_subtitles_en(video_id: str, output_dir: str = "./data/subs") -> str:
+    os.makedirs(output_dir, exist_ok=True)
+    url = f"https://www.youtube.com/watch?v={video_id}"
+    try:
+        subprocess.run([
+            "yt-dlp",
+            "--write-auto-sub",
+            "--sub-lang", "en",
+            "--sub-format", "vtt",
+            "--skip-download",
+            "--no-playlist",
+            "-o", os.path.join(output_dir, f"{video_id}.%(ext)s"),
+            url,
+        ], check=True, capture_output=True, timeout=30)
+
+        # yt-dlp pode gerar "en" ou "en-orig"
+        for suffix in ["en", "en-orig"]:
+            vtt_path = os.path.join(output_dir, f"{video_id}.{suffix}.vtt")
+            if os.path.exists(vtt_path):
+                logger.info(f"Legenda EN encontrada para {video_id}: {vtt_path}")
+                return _parse_vtt(vtt_path)
+
+    except Exception as e:
+        logger.warning(f"Legenda EN indisponível para {video_id}: {e}")
+    return ""
+
+
+def _parse_vtt(path: str) -> str:
+    """Extrai texto limpo de um arquivo VTT, removendo timestamps, tags e duplicatas."""
+    with open(path, encoding="utf-8") as f:
+        content = f.read()
+
+    content = re.sub(r"\d{2}:\d{2}:\d{2}\.\d+ --> .*\n", "", content)
+    content = re.sub(r"<[^>]+>", "", content)
+    content = re.sub(r"^WEBVTT.*\n", "", content, flags=re.MULTILINE)
+
+    lines   = [l.strip() for l in content.splitlines() if l.strip()]
+    deduped = [lines[0]] if lines else []
+    for line in lines[1:]:
+        if line != deduped[-1]:
+            deduped.append(line)
+
+    return " ".join(deduped)
 
 
 # ==============================================================================
@@ -261,6 +321,17 @@ def create_index(es, index_name="video_index", dims=512):
                 "feature_desc":       {"type": "text", "analyzer": "video_text_analyzer"},
                 "keywords":           {"type": "text", "analyzer": "video_text_analyzer"},
                 "feature_categorias": {"type": "keyword"},
+                # --- metadados novos ---
+                "description":        {"type": "text",    "analyzer": "video_text_analyzer"},
+                "transcript":         {"type": "text",    "analyzer": "video_text_analyzer"},
+                "upload_date":        {"type": "date",    "format": "basic_date"},
+                "duration_sec":       {"type": "integer"},
+                "view_count":         {"type": "long"},
+                "like_count":         {"type": "long"},
+                "channel":            {"type": "keyword"},
+                "tags":               {"type": "keyword"},
+                "categories":         {"type": "keyword"},
+                # --- vetores ---
                 "feature_thumb": {
                     "type": "dense_vector", "dims": dims, "index": True,
                     "similarity": "cosine",
@@ -293,6 +364,16 @@ def index_embeddings_bulk(
     keywords:           str               = "",
     feature_thumb:      np.ndarray | None = None,
     modality:           str               = "video",
+    # --- metadados novos ---
+    description:        str               = "",
+    transcript:         str               = "",
+    upload_date:        str               = "",
+    duration_sec:       int               = 0,
+    view_count:         int               = 0,
+    like_count:         int               = 0,
+    channel:            str               = "",
+    tags:               list              = [],
+    categories:         list              = [],
 ) -> None:
     if not embeddings:
         print(f"[WARN] Nenhum embedding para indexar (video_id={video_id}).")
@@ -325,6 +406,16 @@ def index_embeddings_bulk(
                 "feature_categorias": feature_categorias,
                 "feature_desc":       feature_desc,
                 "keywords":           keywords,
+                # --- metadados novos ---
+                "description":        description,
+                "transcript":         transcript,
+                "upload_date":        upload_date,
+                "duration_sec":       duration_sec,
+                "view_count":         view_count,
+                "like_count":         like_count,
+                "channel":            channel,
+                "tags":               tags,
+                "categories":         categories,
             }
 
             if thumb_list is not None and modality == "video":
@@ -421,7 +512,24 @@ def process_video(
     audio_json_path = os.path.join(embeddings_dir, f"{video_id}_audio.json")
 
     feature_categorias = get_feature_categorias(label, taxonomy_lookup)
+
+    # --- coleta de metadados completos ---
+    meta       = fetch_video_metadata(video_id)
+    title      = title or meta.get("title", "")
+    transcript = fetch_subtitles_en(video_id)
     feature_desc, keywords = build_text_metadata(label, title, taxonomy_lookup)
+
+    extra_meta = {
+        "description":  meta.get("description", ""),
+        "transcript":   transcript,
+        "upload_date":  meta.get("upload_date", ""),
+        "duration_sec": meta.get("duration", 0),
+        "view_count":   meta.get("view_count", 0),
+        "like_count":   meta.get("like_count", 0),
+        "channel":      meta.get("channel", ""),
+        "tags":         meta.get("tags", []),
+        "categories":   meta.get("categories", []),
+    }
 
     # ── Caso 1: embeddings já existem no disco ────────────────────────────
     if os.path.exists(video_json_path) and os.path.exists(audio_json_path):
@@ -432,7 +540,6 @@ def process_video(
         with open(audio_json_path) as f:
             audio_embs = json.load(f)
 
-        # Converte listas de volta para numpy (necessário para index_embeddings_bulk)
         for item in all_video_embs:
             if isinstance(item["embedding"], list):
                 item["embedding"] = np.array(item["embedding"], dtype=np.float32)
@@ -440,12 +547,7 @@ def process_video(
             if isinstance(item["embedding"], list):
                 item["embedding"] = np.array(item["embedding"], dtype=np.float32)
 
-        # Thumbnail ainda precisa ser gerada (não é salva em disco)
         feature_thumb_vec = fetch_thumbnail_embedding(video_id, clip_model, clip_preprocess, device)
-
-        if not title:
-            title = fetch_video_title(video_id)
-            feature_desc, keywords = build_text_metadata(label, title, taxonomy_lookup)
 
         logger.info(f"{video_id}: {len(all_video_embs)} emb. vídeo | {len(audio_embs)} emb. áudio")
 
@@ -455,6 +557,7 @@ def process_video(
             feature_categorias=feature_categorias,
             feature_desc=feature_desc, keywords=keywords,
             feature_thumb=feature_thumb_vec, modality="video",
+            **extra_meta,
         )
         index_embeddings_bulk(
             es, audio_embs, index_name="video_index",
@@ -462,16 +565,13 @@ def process_video(
             feature_categorias=feature_categorias,
             feature_desc=feature_desc, keywords=keywords,
             feature_thumb=feature_thumb_vec, modality="audio",
+            **extra_meta,
         )
         logger.info(f"Indexado (cache): {video_id} (vídeo + áudio)")
         return
 
     # ── Caso 2: extrai do vídeo ───────────────────────────────────────────
     feature_thumb_vec = fetch_thumbnail_embedding(video_id, clip_model, clip_preprocess, device)
-
-    if not title:
-        title = fetch_video_title(video_id)
-        feature_desc, keywords = build_text_metadata(label, title, taxonomy_lookup)
 
     if feature_thumb_vec is not None:
         logger.info(f"Thumbnail embutida para {video_id}.")
@@ -544,6 +644,7 @@ def process_video(
             feature_categorias=feature_categorias,
             feature_desc=feature_desc, keywords=keywords,
             feature_thumb=feature_thumb_vec, modality="video",
+            **extra_meta,
         )
 
     # Embeddings de áudio (CLAP)
@@ -582,6 +683,7 @@ def process_video(
                 feature_categorias=feature_categorias,
                 feature_desc=feature_desc, keywords=keywords,
                 feature_thumb=feature_thumb_vec, modality="audio",
+                **extra_meta,
             )
     except Exception as e:
         logger.warning(f"Falha ao processar áudio para {video_id}: {e}")
