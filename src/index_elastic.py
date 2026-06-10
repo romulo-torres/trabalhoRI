@@ -9,6 +9,7 @@ import cv2
 
 import numpy as np
 import torch
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from elasticsearch import Elasticsearch, helpers
 from PIL import Image
 from scenedetect import SceneManager, open_video
@@ -140,8 +141,8 @@ def fetch_video_metadata(video_id: str) -> dict:
         return {
             "title":       data.get("title", ""),
             "description": data.get("description", ""),
-            "upload_date": data.get("upload_date", ""),   # formato "20240315"
-            "duration":    data.get("duration", 0),       # segundos
+            "upload_date": data.get("upload_date", ""),
+            "duration":    data.get("duration", 0),
             "view_count":  data.get("view_count", 0),
             "like_count":  data.get("like_count", 0),
             "channel":     data.get("uploader", ""),
@@ -171,7 +172,6 @@ def fetch_subtitles_en(video_id: str, output_dir: str = "./data/subs") -> str:
             url,
         ], check=True, capture_output=True, timeout=30)
 
-        # yt-dlp pode gerar "en" ou "en-orig"
         for suffix in ["en", "en-orig"]:
             vtt_path = os.path.join(output_dir, f"{video_id}.{suffix}.vtt")
             if os.path.exists(vtt_path):
@@ -202,7 +202,7 @@ def _parse_vtt(path: str) -> str:
 
 
 # ==============================================================================
-# Download de vídeo do YouTube via yt-dlp (com cookies do navegador)
+# Download de vídeo do YouTube via yt-dlp
 # ==============================================================================
 def download_video(
     video_id:   str,
@@ -321,7 +321,6 @@ def create_index(es, index_name="video_index", dims=512):
                 "feature_desc":       {"type": "text", "analyzer": "video_text_analyzer"},
                 "keywords":           {"type": "text", "analyzer": "video_text_analyzer"},
                 "feature_categorias": {"type": "keyword"},
-                # --- metadados novos ---
                 "description":        {"type": "text",    "analyzer": "video_text_analyzer"},
                 "transcript":         {"type": "text",    "analyzer": "video_text_analyzer"},
                 "upload_date":        {"type": "date",    "format": "basic_date"},
@@ -331,7 +330,6 @@ def create_index(es, index_name="video_index", dims=512):
                 "channel":            {"type": "keyword"},
                 "tags":               {"type": "keyword"},
                 "categories":         {"type": "keyword"},
-                # --- vetores ---
                 "feature_thumb": {
                     "type": "dense_vector", "dims": dims, "index": True,
                     "similarity": "cosine",
@@ -364,7 +362,6 @@ def index_embeddings_bulk(
     keywords:           str               = "",
     feature_thumb:      np.ndarray | None = None,
     modality:           str               = "video",
-    # --- metadados novos ---
     description:        str               = "",
     transcript:         str               = "",
     upload_date:        str               = "",
@@ -406,7 +403,6 @@ def index_embeddings_bulk(
                 "feature_categorias": feature_categorias,
                 "feature_desc":       feature_desc,
                 "keywords":           keywords,
-                # --- metadados novos ---
                 "description":        description,
                 "transcript":         transcript,
                 "upload_date":        upload_date,
@@ -481,11 +477,26 @@ def delete_index(es, index_name: str = "video_index") -> None:
 
 
 # ==============================================================================
+# Verificar se vídeo já está indexado
+# MELHORIA: usa aggregation — 1 roundtrip ao ES em vez de 2 queries separadas
+# ==============================================================================
+def already_indexed(es, video_id: str, index_name: str = "video_index") -> bool:
+    try:
+        res = es.search(
+            index=index_name,
+            size=0,
+            query={"term": {"video_id": video_id}},
+            aggs={"by_modality": {"terms": {"field": "modality", "size": 10}}},
+        )
+        buckets = {b["key"] for b in res["aggregations"]["by_modality"]["buckets"]}
+        return {"video", "audio"}.issubset(buckets)
+    except Exception as e:
+        logger.warning(f"Erro ao verificar indexação de {video_id}: {e}")
+        return False
+
+
+# ==============================================================================
 # Processar um único vídeo
-# Lógica de cache:
-#   1. Se embeddings JSON já existem no disco → carrega direto (pula extração)
-#   2. Se não existem → extrai dos frames/áudio e salva
-#   3. Em ambos os casos → indexa no ES (se ainda não indexado)
 # ==============================================================================
 def process_video(
     video_path:      str,
@@ -513,7 +524,6 @@ def process_video(
 
     feature_categorias = get_feature_categorias(label, taxonomy_lookup)
 
-    # --- coleta de metadados completos ---
     meta       = fetch_video_metadata(video_id)
     title      = title or meta.get("title", "")
     transcript = fetch_subtitles_en(video_id)
@@ -593,7 +603,6 @@ def process_video(
 
     logger.info(f"Cenas detectadas: {len(scenes)}")
 
-    # Segmentação
     all_segments = []
     for scene_idx, (start, end) in enumerate(scenes):
         if end - start < 1.0:
@@ -618,7 +627,6 @@ def process_video(
         logger.warning(f"Nenhum segmento gerado para {video_id}.")
         return
 
-    # Embeddings de vídeo (CLIP)
     all_video_embs = []
     for seg in all_segments:
         try:
@@ -647,7 +655,6 @@ def process_video(
             **extra_meta,
         )
 
-    # Embeddings de áudio (CLAP)
     try:
         audio_embs = emb.generate_audio_embeddings_from_segments(
             video_path=video_path,
@@ -688,7 +695,6 @@ def process_video(
     except Exception as e:
         logger.warning(f"Falha ao processar áudio para {video_id}: {e}")
 
-    # Libera memória após cada vídeo
     gc.collect()
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
@@ -697,34 +703,9 @@ def process_video(
 
 
 # ==============================================================================
-# Verificar se vídeo já está indexado
-# ==============================================================================
-def already_indexed(es, video_id: str) -> bool:
-    res_video = es.search(
-        index="video_index",
-        query={"bool": {"must": [
-            {"term": {"video_id": video_id}},
-            {"term": {"modality": "video"}}
-        ]}},
-        size=1,
-    )
-    has_video = len(res_video["hits"]["hits"]) > 0
-
-    res_audio = es.search(
-        index="video_index",
-        query={"bool": {"must": [
-            {"term": {"video_id": video_id}},
-            {"term": {"modality": "audio"}}
-        ]}},
-        size=1,
-    )
-    has_audio = len(res_audio["hits"]["hits"]) > 0
-
-    return has_video and has_audio
-
-
-# ==============================================================================
 # Processar todos os vídeos locais
+# MELHORIA: ThreadPoolExecutor para paralelizar metadados/download enquanto
+#           o embedding na GPU permanece sequencial (evita contenção de VRAM).
 # ==============================================================================
 def process_local_videos(
     video_dir:       str,
@@ -735,17 +716,35 @@ def process_local_videos(
     es,
     taxonomy_lookup: dict[str, str] = {},
     anet_database:   dict           = {},
+    max_workers:     int            = 4,
 ) -> None:
-    for filename in sorted(os.listdir(video_dir)):
-        if not filename.endswith(".mp4"):
-            continue
+    filenames = [f for f in sorted(os.listdir(video_dir)) if f.endswith(".mp4")]
 
-        video_id   = filename.replace(".mp4", "")
-        video_path = os.path.join(video_dir, filename)
+    if not filenames:
+        logger.warning(f"Nenhum arquivo .mp4 encontrado em '{video_dir}'.")
+        return
 
-        if already_indexed(es, video_id):
-            logger.info(f"{video_id} já indexado — pulando.")
-            continue
+    # Pré-filtra vídeos já indexados em paralelo (1 roundtrip por vídeo, mas I/O bound)
+    def check_indexed(filename: str) -> tuple[str, bool]:
+        video_id = filename.replace(".mp4", "")
+        return video_id, already_indexed(es, video_id)
+
+    logger.info(f"Verificando {len(filenames)} vídeos no índice...")
+    pending: list[str] = []
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = {executor.submit(check_indexed, f): f for f in filenames}
+        for future in as_completed(futures):
+            video_id, indexed = future.result()
+            if indexed:
+                logger.info(f"{video_id} já indexado — pulando.")
+            else:
+                pending.append(video_id)
+
+    logger.info(f"{len(pending)} vídeo(s) para processar.")
+
+    # Embedding e indexação permanecem sequenciais (GPU não é thread-safe)
+    for video_id in sorted(pending):
+        video_path = os.path.join(video_dir, f"{video_id}.mp4")
 
         label = ""
         title = ""
