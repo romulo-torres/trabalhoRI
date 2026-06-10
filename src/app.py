@@ -1,5 +1,6 @@
 import os
 import tempfile
+from collections import defaultdict
 
 import numpy as np
 import streamlit as st
@@ -16,12 +17,10 @@ st.set_page_config(page_title="VideoSearch AI", layout="wide")
 # ==============================================================================
 # Cache de recursos
 # ==============================================================================
-@st.cache_resource
 def get_es():
     return ind.connect_elasticsearch()
 
 
-@st.cache_resource
 def get_models():
     return emb.load_all_models()
 
@@ -33,7 +32,6 @@ clip_model, clip_preprocess, clap_model, device = get_models()
 # ==============================================================================
 # Expansão de query com sinônimos (WordNet via NLTK)
 # ==============================================================================
-@st.cache_data(show_spinner=False)
 def expand_query(text: str) -> tuple[str, list[str]]:
     """
     Retorna (query_expandida, lista_de_sinonimos).
@@ -76,6 +74,26 @@ def expand_query(text: str) -> tuple[str, list[str]]:
     except Exception as e:
         st.warning(f"Expansão de query indisponível: {e}")
         return text, []
+
+
+# ==============================================================================
+# Agregação de scores com LogSumExp (estável numericamente)
+#
+# Comportamento: domina pelo pico do melhor segmento, mas sobe ligeiramente
+# quando múltiplos segmentos são relevantes — sem favorecer vídeos longos
+# linearmente como a soma faria.
+#
+# Fórmula: LSE(s) = max(s) + log( Σ exp(s_i − max(s)) )
+# Subtrair o máximo antes do exp evita overflow em float64.
+# ==============================================================================
+def _logsumexp_scores(score_lists: dict[str, list[float]]) -> dict[str, float]:
+    result = {}
+    for vid, scores in score_lists.items():
+        arr = np.array(scores, dtype=np.float64)
+        m   = arr.max()
+        lse = m + np.log(np.sum(np.exp(arr - m)))
+        result[vid] = float(lse)
+    return result
 
 
 # ==============================================================================
@@ -161,14 +179,15 @@ def search_by_text(query: str, top_k: int) -> list[tuple[str, float]]:
     }
 
     try:
-        resp  = es.search(index="video_index", body=body)
-        hits  = resp["hits"]["hits"]
-        scores: dict[str, float] = {}
+        resp = es.search(index="video_index", body=body)
+        hits = resp["hits"]["hits"]
+        score_lists: dict[str, list[float]] = defaultdict(list)
         for h in hits:
             vid = h["_source"].get("video_id", "")
             if vid:
-                scores[vid] = scores.get(vid, 0.0) + h["_score"]
-        return sorted(scores.items(), key=lambda x: x[1], reverse=True)[:top_k]
+                score_lists[vid].append(h["_score"])
+        aggregated = _logsumexp_scores(score_lists)
+        return sorted(aggregated.items(), key=lambda x: x[1], reverse=True)[:top_k]
     except Exception as e:
         st.error(f"Erro na busca por texto: {e}")
         return []
@@ -287,14 +306,15 @@ def search_by_video(video_path: str, top_k: int) -> list[tuple[str, float]]:
     }
 
     try:
-        resp   = es.search(index="video_index", body=body)
-        hits   = resp["hits"]["hits"]
-        scores: dict[str, float] = {}
+        resp = es.search(index="video_index", body=body)
+        hits = resp["hits"]["hits"]
+        score_lists: dict[str, list[float]] = defaultdict(list)
         for h in hits:
             vid = h["_source"].get("video_id", "")
             if vid:
-                scores[vid] = scores.get(vid, 0.0) + h["_score"]
-        return sorted(scores.items(), key=lambda x: x[1], reverse=True)[:top_k]
+                score_lists[vid].append(h["_score"])
+        aggregated = _logsumexp_scores(score_lists)
+        return sorted(aggregated.items(), key=lambda x: x[1], reverse=True)[:top_k]
     except Exception as e:
         st.error(f"Erro na busca por vídeo: {e}")
         return []
@@ -327,7 +347,7 @@ def render_results(results: list[tuple[str, float]]) -> None:
 # ==============================================================================
 # Interface
 # ==============================================================================
-st.title("🎬 VideoSearch AI")
+st.title("VideoSearch AI")
 
 with st.sidebar:
     st.header("Configurações")
