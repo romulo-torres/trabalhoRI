@@ -225,9 +225,10 @@ def stream_segments(
     max_frames: int = 45,
 ) -> list[dict]:
     """
-    Abre o video 1 vez, percorre cenas, agrupa frames em segmentos
-    de ate max_frames, executa CLIP embedding e descarta os frames.
-    Uso de memoria constante: ~40 MB (1 segmento de 45 frames).
+    Abre o video 1 vez, percorre cenas, amostra 1 frame por segundo,
+    agrupa frames em segmentos de ate max_frames, executa CLIP
+    embedding e descarta os frames. Uso de memoria constante:
+    ~40 MB (1 segmento de 45 frames).
     """
     import embeddings as emb
 
@@ -246,6 +247,8 @@ def stream_segments(
     frames_read = 0
     frames_expected = 0
 
+    step = max(1, int(fps))
+
     for sc_idx, (start, end) in enumerate(scenes):
         start_f = int(start * fps)
         end_f = int(end * fps)
@@ -253,7 +256,7 @@ def stream_segments(
         if start_f != 0:
             cap.set(cv2.CAP_PROP_POS_FRAMES, start_f)
 
-        for global_f in range(start_f, end_f + 1):
+        for global_f in range(start_f, end_f + 1, step):
             ret, frame = cap.read()
             # MSMF backend no Windows pode falhar no 1o frame
             if not ret and global_f == start_f:
@@ -321,10 +324,9 @@ def batch_segments(
     max_frames: int = 45,
 ) -> list[dict]:
     """
-    Carrega TODOS os frames do video na RAM, agrupa em segmentos,
-    e processa CLIP em um unico batch GPU.
-    Mais rapido que stream_segments (1 chamada GPU vs N chamadas),
-    mas usa mais RAM (~5-10 GB para video de 2 min).
+    Carrega frames amostrados (1 por segundo) do video na RAM,
+    agrupa em segmentos e processa CLIP em um unico batch GPU.
+    Mais rapido que stream_segments (1 chamada GPU vs N chamadas).
     """
     import torch
     import embeddings as emb
@@ -333,6 +335,8 @@ def batch_segments(
     if not cap.isOpened():
         raise IOError(f"Nao foi possivel abrir o video: '{video_path}'")
     fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
+
+    step = max(1, int(fps))
 
     # 1. Agrupa frames em segmentos (sem embed)
     all_segments = []
@@ -343,7 +347,7 @@ def batch_segments(
         end_f = int(end * fps)
         cap.set(cv2.CAP_PROP_POS_FRAMES, start_f)
 
-        for global_f in range(start_f, end_f + 1):
+        for global_f in range(start_f, end_f + 1, step):
             ret, frame = cap.read()
             if not ret:
                 break
