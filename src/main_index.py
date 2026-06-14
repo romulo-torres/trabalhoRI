@@ -102,7 +102,7 @@ def worker_embed(clip_model, clip_preprocess, clap_model, device, n_producers: i
                 total = cap.get(cv2.CAP_PROP_FRAME_COUNT)
                 cap.release()
                 duration = total / fps
-                scenes = [(t, t) for t in range(0, int(duration), 10)]
+                scenes = [(t, t) for t in range(0, int(duration), 2)]
                 logger.info(f"[EMBED] {video_id} fallback: fps={fps} duracao={duration:.1f}s {len(scenes)} frames")
 
             logger.info(f"[EMBED] {video_id} {len(scenes)} cenas para segmentar")
