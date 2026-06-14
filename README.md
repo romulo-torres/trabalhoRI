@@ -24,7 +24,7 @@ Os scripts `docker/run.sh` (Linux) e `docker/run.ps1` (Windows/PowerShell) contr
 ./docker/run.sh app
 ```
 
-4. Indexar vídeos (ex: 10 primeiros)
+4. Indexar vídeos (indexa 10)
 
 ```bash
 ./docker/run.sh index -w 10

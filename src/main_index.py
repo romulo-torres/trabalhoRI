@@ -7,6 +7,7 @@ import threading
 import time
 import traceback
 
+
 import cv2
 import numpy as np
 import torch
@@ -296,11 +297,14 @@ def main_index_fast(window: int = 0, offset: int = 0, input_file: str | None = N
 
     # Arquivo de metadados
     if input_file is None:
-        input_file = os.path.join(BASE_DIR, "..", "data", "metadata", "videos_filtered.json")
+        input_file = os.path.join(BASE_DIR, "..", "data", "metadata", "videos_metadata.json")
 
     if not os.path.exists(input_file):
-        logger.error(f"Arquivo de metadados não encontrado: {input_file}")
-        return
+        logger.warning(f"Arquivo de metadados não encontrado: {input_file}")
+        logger.info(f"Criando arquivo vazio: {input_file}")
+        os.makedirs(os.path.dirname(input_file), exist_ok=True)
+        with open(input_file, "w") as f:
+            json.dump({}, f)
 
     all_meta = ind.load_filtered_metadata(input_file)
     logger.info(f"Total de entradas em {os.path.basename(input_file)}: {len(all_meta)}")
@@ -393,8 +397,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--input", "-i", type=str, default=None,
-        help="Arquivo JSON de metadados (default: data/metadata/videos_filtered.json). "
-             "Use data/metadata/videos_metadata.json para usar o arquivo bruto.",
+        help="Arquivo JSON de metadados (default: data/metadata/videos_metadata.json)",
     )
     parser.add_argument(
         "--batch", action="store_true",
@@ -409,7 +412,7 @@ if __name__ == "__main__":
     log_args = [
         f"window={args.window or 'todos'}",
         f"offset={args.offset}",
-        f"input={args.input or 'videos_filtered.json'}",
+        f"input={args.input or 'videos_metadata.json'}",
         f"batch={CONFIG['batch_mode']}",
     ]
     logger.info(f"main_index iniciado com: {', '.join(log_args)}")
