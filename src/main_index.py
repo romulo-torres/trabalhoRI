@@ -96,13 +96,15 @@ def worker_embed(clip_model, clip_preprocess, clap_model, device, n_producers: i
                 scenes = []
 
             if not scenes:
-                logger.info(f"[EMBED] {video_id} sem cenas detectadas - usando video inteiro")
+                logger.info(f"[EMBED] {video_id} sem cenas detectadas - amostrando a cada 10s")
                 cap   = cv2.VideoCapture(video_path)
                 fps   = cap.get(cv2.CAP_PROP_FPS) or 30.0
                 total = cap.get(cv2.CAP_PROP_FRAME_COUNT)
                 cap.release()
-                scenes = [(0.0, total / fps)]
-                logger.info(f"[EMBED] {video_id} fallback: fps={fps} total_frames={total} duracao={total/fps:.1f}s")
+                duration = total / fps
+                step = 10.0
+                scenes = [(t, min(t + 2.0, duration)) for t in range(0, int(duration), int(step))]
+                logger.info(f"[EMBED] {video_id} fallback: fps={fps} duracao={duration:.1f}s {len(scenes)} janelas")
 
             logger.info(f"[EMBED] {video_id} {len(scenes)} cenas para segmentar")
 
