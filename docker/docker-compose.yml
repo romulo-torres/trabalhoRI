@@ -39,6 +39,12 @@ services:
         source: ../data/queries
         target: /app/data/queries
       - type: bind
+        source: ../data/corpus
+        target: /app/data/corpus
+      - type: bind
+        source: ../data/pooling
+        target: /app/data/pooling
+      - type: bind
         source: ../data/judgments
         target: /app/data/judgments
       - type: bind

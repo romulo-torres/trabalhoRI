@@ -279,7 +279,39 @@ def _ensure_synthetic_fields(meta: dict, taxonomy_lookup: dict) -> dict:
 
 
 # Pipeline principal
-def main_index_fast(window: int = 0, offset: int = 0, input_file: str | None = None) -> None:
+def _load_corpus(corpus_path: str) -> dict:
+    """Carrega corpus.jsonl no formato BEIR e converte para dict {video_id: meta}."""
+    meta = {}
+    with open(corpus_path, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            doc = json.loads(line)
+            vid = doc["_id"]
+            # Extrai campos do corpus para o formato esperado pelo indexador
+            m = doc.get("metadata", {})
+            meta[vid] = {
+                "title": doc.get("title", ""),
+                "description": m.get("description", doc.get("text", "")[:500]),
+                "tags": m.get("tags", []),
+                "categories": m.get("categories", []),
+                "duration": m.get("duration", 0),
+                "view_count": m.get("view_count", 0),
+                "like_count": m.get("like_count", 0),
+                "channel": m.get("channel", ""),
+                "upload_date": m.get("upload_date", ""),
+                "transcript": m.get("transcript", ""),
+                "feature_desc": m.get("feature_desc", ""),
+                "keywords": m.get("keywords", ""),
+                "anet_label": m.get("anet_label", ""),
+                "anet_subset": m.get("anet_subset", ""),
+                "status": m.get("status", "downloaded"),
+            }
+    return meta
+
+
+def main_index_fast(window: int = 0, offset: int = 0, input_file: str | None = None, use_corpus: bool = False) -> None:
     global_start = time.time()
 
     os.makedirs(VIDEO_DIR, exist_ok=True)
@@ -296,19 +328,27 @@ def main_index_fast(window: int = 0, offset: int = 0, input_file: str | None = N
     anet_json = os.path.join(BASE_DIR, "..", "data", "activity_net.v1-3.min.json")
     taxonomy = ind.build_taxonomy_lookup(anet_json)
 
-    # Arquivo de metadados
-    if input_file is None:
-        input_file = os.path.join(BASE_DIR, "..", "data", "metadata", "videos_metadata.json")
-
-    if not os.path.exists(input_file):
-        logger.warning(f"Arquivo de metadados não encontrado: {input_file}")
-        logger.info(f"Criando arquivo vazio: {input_file}")
-        os.makedirs(os.path.dirname(input_file), exist_ok=True)
-        with open(input_file, "w") as f:
-            json.dump({}, f)
-
-    all_meta = ind.load_filtered_metadata(input_file)
-    logger.info(f"Total de entradas em {os.path.basename(input_file)}: {len(all_meta)}")
+    # Carrega metadados do corpus ou do JSON tradicional
+    if use_corpus:
+        corpus_path = input_file or os.path.join(BASE_DIR, "..", "data", "corpus", "corpus.jsonl")
+        if not os.path.exists(corpus_path):
+            logger.warning(f"Corpus não encontrado: {corpus_path}")
+            return
+        all_meta = _load_corpus(corpus_path)
+        logger.info(f"Total de entradas no corpus: {len(all_meta)}")
+        meta_source = "corpus"
+    else:
+        if input_file is None:
+            input_file = os.path.join(BASE_DIR, "..", "data", "metadata", "videos_metadata.json")
+        if not os.path.exists(input_file):
+            logger.warning(f"Arquivo de metadados não encontrado: {input_file}")
+            logger.info(f"Criando arquivo vazio: {input_file}")
+            os.makedirs(os.path.dirname(input_file), exist_ok=True)
+            with open(input_file, "w") as f:
+                json.dump({}, f)
+        all_meta = ind.load_filtered_metadata(input_file)
+        logger.info(f"Total de entradas em {os.path.basename(input_file)}: {len(all_meta)}")
+        meta_source = "metadata"
 
     # Cruza com MP4s existentes em disco
     mp4_ids = set()
@@ -320,23 +360,30 @@ def main_index_fast(window: int = 0, offset: int = 0, input_file: str | None = N
     candidates = sorted(
         vid for vid in all_meta if vid in mp4_ids
     )
-    logger.info(f"Vídeos com MP4 em disco: {len(mp4_ids)} | Com metadados: {len(candidates)}")
+    logger.info(f"Vídeos com MP4 em disco: {len(mp4_ids)} | Com metadados: {len(candidates)} (fonte: {meta_source})")
 
     # Aplica offset na lista completa
     if offset > 0:
         candidates = candidates[offset:]
         logger.info(f"Offset aplicado: pulando {offset} videos")
 
-    # Filtra já indexados (antes do window)
+    # Filtra já indexados: exige ES + embeddings em disco (AND)
+    def _has_embeddings_disk(vid: str) -> bool:
+        return (
+            os.path.exists(os.path.join(EMBEDDINGS_DIR, f"{vid}_video.json"))
+            and os.path.exists(os.path.join(EMBEDDINGS_DIR, f"{vid}_audio.json"))
+        )
+
     pending = []
     for vid in candidates:
-        if not ind.already_indexed(es, vid):
-            meta = _ensure_synthetic_fields(all_meta[vid].copy(), taxonomy)
-            pending.append((vid, meta))
+        if ind.already_indexed(es, vid) and _has_embeddings_disk(vid):
+            continue
+        meta = _ensure_synthetic_fields(all_meta[vid].copy(), taxonomy)
+        pending.append((vid, meta))
         if window > 0 and len(pending) >= window:
             break
 
-    logger.info(f"JA indexados: {len(candidates) - len(pending)} | NOVOS a processar: {len(pending)}")
+    logger.info(f"JA indexados (ES + disco): {len(candidates) - len(pending)} | NOVOS a processar: {len(pending)}")
 
     if not pending:
         logger.info("Nada para processar.")
@@ -404,6 +451,10 @@ if __name__ == "__main__":
         "--batch", action="store_true",
         help="Modo batch (carrega todos os frames na RAM, mais rapido mas consome mais memoria)",
     )
+    parser.add_argument(
+        "--corpus", action="store_true",
+        help="Usa data/corpus/corpus.jsonl como fonte de metadados em vez do videos_metadata.json",
+    )
 
     args = parser.parse_args()
 
@@ -413,9 +464,10 @@ if __name__ == "__main__":
     log_args = [
         f"window={args.window or 'todos'}",
         f"offset={args.offset}",
-        f"input={args.input or 'videos_metadata.json'}",
+        f"input={args.input or ('corpus.jsonl' if args.corpus else 'videos_metadata.json')}",
         f"batch={CONFIG['batch_mode']}",
+        f"corpus={args.corpus}",
     ]
     logger.info(f"main_index iniciado com: {', '.join(log_args)}")
 
-    main_index_fast(window=args.window, offset=args.offset, input_file=args.input)
+    main_index_fast(window=args.window, offset=args.offset, input_file=args.input, use_corpus=args.corpus)

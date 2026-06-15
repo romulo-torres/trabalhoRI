@@ -36,6 +36,7 @@ streamlit
 # Utilidades
 scikit-learn
 transformers
+rank-bm25
 
 # Dataset / Download
 fsspec<=2025.10.0

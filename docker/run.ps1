@@ -6,6 +6,10 @@ $composeDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 Set-Location $composeDir
 
 $composeFiles = @("-f", "docker-compose.yml")
+$null = & nvidia-smi 2>$null
+if ($LASTEXITCODE -eq 0) {
+    $composeFiles = @("-f", "docker-compose.yml", "-f", "docker-compose.gpu.yml")
+}
 
 switch ($command) {
     "up" {
@@ -20,6 +24,11 @@ switch ($command) {
     "index" {
         Write-Host "Executando pipeline de indexacao... args: $args"
         docker compose $composeFiles run --rm system python src/main_index.py @args
+    }
+    "corpus" {
+        Write-Host "Gerando corpus.jsonl a partir dos metadados... args: $args"
+        Set-Location $composeDir\..
+        & python src/build_corpus.py @args
     }
     "app" {
         Write-Host "Iniciando Streamlit em http://localhost:8501..."
@@ -45,9 +54,28 @@ switch ($command) {
         docker compose build @buildArgs system
     }
     "queries" {
-        Write-Host "Executando gerador de queries (LLM)..."
+        Write-Host "Gerando 4 consultas por video via LLM... args: $args"
         Set-Location $composeDir\..
         & python src/generate_queries.py @args
+    }
+    "pooling" {
+        Write-Host "Executando BM25 pooling... args: $args"
+        docker compose $composeFiles run --rm system python src/pooling.py @args
+    }
+    "judge" {
+        Write-Host "Executando julgamento de relevancia via LLM... args: $args"
+        Set-Location $composeDir\..
+        & python src/judge_relevance.py @args
+    }
+    "build-collection" {
+        Write-Host "Montando colecao BEIR final... args: $args"
+        Set-Location $composeDir\..
+        & python src/build_collection.py @args
+    }
+    "evaluate" {
+        Write-Host "Avaliando metricas TREC... args: $args"
+        Set-Location $composeDir\..
+        & python src/evaluate.py @args
     }
     "stats" {
         Write-Host "Estatisticas do indice ES... args: $args"
@@ -57,16 +85,24 @@ switch ($command) {
         docker compose logs -f
     }
     default {
-        Write-Host "Uso: $($MyInvocation.MyCommand.Name) {up|down|index|app|shell|build|queries|stats|logs}"
+        Write-Host "Uso: $($MyInvocation.MyCommand.Name) {comando} [args]"
         Write-Host ""
-        Write-Host "  up       - Inicia Elasticsearch"
-        Write-Host "  down     - Para todos os servicos"
-        Write-Host "  index    - Executa pipeline de indexacao (aceita: --window, --offset, --input, --batch)"
-        Write-Host "  app      - Inicia interface Streamlit"
-        Write-Host "  shell    - Abre shell interativo no container"
-        Write-Host "  build    - Reconstroi a imagem Docker"
-        Write-Host "  queries  - Gera queries de busca via LLM (local, fora do Docker)"
-        Write-Host "  stats    - Estatisticas dos videos indexados (aceita: --index, --verbose)"
-        Write-Host "  logs     - Segue os logs"
+        Write-Host "--- Search App (requer Docker + ES) ---"
+        Write-Host "  up       Inicia Elasticsearch"
+        Write-Host "  down     Para todos os servicos"
+        Write-Host "  build    Reconstroi a imagem Docker"
+        Write-Host "  index    Pipeline de indexacao (--window, --offset, --input, --batch, --corpus)"
+        Write-Host "  app      Inicia interface Streamlit (localhost:8501)"
+        Write-Host "  shell    Abre bash interativo no container"
+        Write-Host "  stats    Estatisticas dos videos indexados (--index, --verbose)"
+        Write-Host "  logs     Segue os logs do container"
+        Write-Host ""
+        Write-Host "--- Colecao de Referencia (roda local, sem Docker) ---"
+        Write-Host "  corpus   Gera corpus.jsonl dos metadados (--only-with-video, --metadata)"
+        Write-Host "  queries  Gera consultas via LLM (--provider, --window, --offset, --force, --api-key)"
+        Write-Host "  pooling  BM25 pooling dentro do container (--top-k, --variants, --merge)"
+        Write-Host "  judge    Julga relevancia via LLM (--provider, --window, --batch-size, --api-key)"
+        Write-Host "  build-collection  Monta qrels + hard negatives"
+        Write-Host "  evaluate Avalia metricas TREC (--k, --pool-source)"
     }
 }
