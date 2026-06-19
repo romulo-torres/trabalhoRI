@@ -2,7 +2,6 @@ import os
 import json
 import subprocess
 import tempfile
-import urllib.request
 
 import torch
 import numpy as np
@@ -24,24 +23,6 @@ _clip_preprocess = None
 _clap_model      = None
 _device          = None
 
-CLAP_DOWNLOAD_LINK = 'https://huggingface.co/lukewys/laion_clap/resolve/main/'
-CLAP_FILENAME = '630k-audioset-best.pt'
-
-
-def _ensure_clap_checkpoint(cache_dir: str) -> str:
-    """Baixa o checkpoint do CLAP para cache local se necessario. Retorna o caminho."""
-    os.makedirs(cache_dir, exist_ok=True)
-    cached_path = os.path.join(cache_dir, CLAP_FILENAME)
-    if os.path.exists(cached_path):
-        return cached_path
-    part_path = cached_path + ".part"
-    url = CLAP_DOWNLOAD_LINK + CLAP_FILENAME
-    print(f"Baixando CLAP checkpoint ({CLAP_FILENAME}) para {cached_path}...")
-    urllib.request.urlretrieve(url, part_path)
-    os.rename(part_path, cached_path)
-    print("Download concluido!")
-    return cached_path
-
 
 # ==============================================================================
 # Carregar todos os modelos (CLIP + CLAP) — com cache global
@@ -61,31 +42,13 @@ def load_all_models(device: str | None = None):
     else:
         _device = device
 
-    # Cache persistente para HuggingFace (roberta tokenizer usado pelo CLAP)
-    hf_cache = os.path.abspath(os.path.join(
-        os.path.dirname(__file__), "..", "data", "cache", "huggingface"
-    ))
-    os.makedirs(hf_cache, exist_ok=True)
-    os.environ["HF_HOME"] = hf_cache
-
-    # Cache persistente para torch.hub (pesos do CLIP)
-    torch_cache = os.path.abspath(os.path.join(
-        os.path.dirname(__file__), "..", "data", "cache", "torch"
-    ))
-    os.makedirs(torch_cache, exist_ok=True)
-    os.environ["TORCH_HOME"] = torch_cache
-
     # CLIP — ViT-B/32 produz embeddings de 512 dimensões para imagem e texto
     _clip_model, _clip_preprocess = clip.load("ViT-B/32", device=_device)
     _clip_model.eval()
 
     # CLAP — embeddings de 512 dimensões para áudio e texto
-    clap_cache = os.path.abspath(os.path.join(
-        os.path.dirname(__file__), "..", "data", "cache", "clap"
-    ))
-    ckpt_path = _ensure_clap_checkpoint(clap_cache)
     _clap_model = laion_clap.CLAP_Module(enable_fusion=False)
-    _clap_model.load_ckpt(ckpt_path)
+    _clap_model.load_ckpt()
     _clap_model.to(_device)
     _clap_model.eval()
 

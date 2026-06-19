@@ -1,12 +1,14 @@
+import argparse
 import gc
 import json
 import os
 import queue
 import threading
 import time
-import concurrent.futures
-from pathlib import Path
+import traceback
 
+
+import cv2
 import numpy as np
 import torch
 
@@ -17,199 +19,186 @@ from logger import setup_logger
 
 logger = setup_logger()
 
-# ─── Configuração ─────────────────────────────────────────────────────────────
-MAX_VIDEOS       = 2000
-DOWNLOAD_WORKERS = 2
+# Configuração
 INDEX_WORKERS    = 2
 EMBEDDINGS_DIR   = "./data/embeddings"
 VIDEO_DIR        = "./data/videos"
-BROWSER          = "chrome"
 
-# Filas passam apenas IDs/paths, não vetores
-# download_queue: (video_id, meta, video_path)
-# index_queue:    (video_id, label, title, video_json_path, audio_json_path)
-download_queue = queue.Queue(maxsize=2)
-index_queue    = queue.Queue(maxsize=4)
+# Modo de processamento:
+#   False = streaming (1 segmento por vez)
+#   True  = batch    (todos frames na RAM, CLIP em 1 chamada GPU)
+CONFIG = {"batch_mode": False, "index_workers": INDEX_WORKERS}
+
+# embed_queue: (video_id, video_path, metadata_dict) - contem frames, maxsize controlado
+# index_queue: (video_id, metadata_dict, video_json_path, audio_json_path) - apenas paths, sem limite
+embed_queue = queue.Queue(maxsize=8)
+index_queue = queue.Queue()
 
 SENTINEL = object()
 
 
-# ─── Worker de download ────────────────────────────────────────────────────────
-def worker_download(video_id: str, meta: dict, video_dir: str) -> None:
-    local_path = Path(video_dir) / f"{video_id}.mp4"
-    try:
-        if local_path.exists() and ind._is_valid_mp4(str(local_path)):
-            video_path = str(local_path)
-            logger.info(f"{video_id}: encontrado localmente.")
-        else:
-            logger.info(f"{video_id}: baixando...")
-            video_path = ind.download_video(video_id, video_dir, browser=BROWSER)
-
-        if not video_path:
-            logger.warning(f"{video_id}: falha no download.")
-            return
-
-        while True:
-            try:
-                download_queue.put((video_id, meta, video_path), timeout=30)
-                break
-            except queue.Full:
-                logger.warning(f"{video_id}: fila download cheia, aguardando...")
-
-    except Exception as e:
-        logger.error(f"{video_id}: erro download: {e}")
-
-
-# ─── Worker de embedding (GPU) ────────────────────────────────────────────────
+# Worker de embedding (GPU
 def worker_embed(clip_model, clip_preprocess, clap_model, device, n_producers: int) -> None:
     sentinels_received = 0
+    logger.info(f"[EMBED] worker iniciado. device={device} n_producers={n_producers}")
 
     while True:
         try:
-            item = download_queue.get(timeout=60)
+            item = embed_queue.get(timeout=60)
         except queue.Empty:
-            logger.warning("Embedding: sem itens há 60s.")
+            logger.warning("[EMBED] fila vazia há 60s.")
             continue
 
         if item is SENTINEL:
             sentinels_received += 1
-            download_queue.task_done()
+            embed_queue.task_done()
+            logger.info(f"[EMBED] sentinela recebida ({sentinels_received}/{n_producers})")
             if sentinels_received >= n_producers:
                 for _ in range(INDEX_WORKERS):
                     index_queue.put(SENTINEL)
-                logger.info("Embedding: finalizando.")
+                logger.info("[EMBED] worker finalizando.")
                 return
             continue
 
-        video_id, meta, video_path = item
+        video_id, video_path, meta = item
+        logger.info(f"[EMBED] {video_id} ===== INICIANDO PROCESSAMENTO =====")
+        logger.info(f"[EMBED] {video_id} video_path={video_path}")
+        logger.info(f"[EMBED] {video_id} device={device} cuda_available={torch.cuda.is_available()}")
 
         try:
-            annotations = meta.get("annotations", [])
-            label = annotations[0].get("label", "") if annotations else ""
-            title = meta.get("url", "")
-
             video_json = os.path.join(EMBEDDINGS_DIR, f"{video_id}_video.json")
             audio_json = os.path.join(EMBEDDINGS_DIR, f"{video_id}_audio.json")
+            logger.info(f"[EMBED] {video_id} video_json={video_json}")
+            logger.info(f"[EMBED] {video_id} audio_json={audio_json}")
 
-            # ── Cache: JSONs já existem → pula extração ───────────────────────
-            if os.path.exists(video_json) and os.path.exists(audio_json):
-                logger.info(f"{video_id}: cache encontrado.")
-                index_queue.put((video_id, label, title, video_json, audio_json))
+            # Cache: JSONs já existem -> pula extração
+            cache_video = os.path.exists(video_json)
+            cache_audio = os.path.exists(audio_json)
+            logger.info(f"[EMBED] {video_id} cache_check: video_exists={cache_video} audio_exists={cache_audio}")
+            if cache_video and cache_audio:
+                logger.info(f"[EMBED] {video_id} cache encontrado - gerando só thumbnail.")
+                try:
+                    feature_thumb = ind.fetch_thumbnail_embedding(
+                        video_id, clip_model, clip_preprocess, device
+                    )
+                except Exception:
+                    feature_thumb = None
+                index_queue.put((video_id, meta, video_json, audio_json, feature_thumb))
                 continue
 
-            # ── Extrai embeddings ─────────────────────────────────────────────
-            logger.info(f"{video_id}: extraindo embeddings...")
-
+            # Detecção de cenas
+            logger.info(f"[EMBED] {video_id} detectando cenas...")
             try:
                 scenes = ind.detect_scenes(video_path)
+                logger.info(f"[EMBED] {video_id} detect_scenes retornou {len(scenes)} cenas")
             except Exception as e:
-                logger.warning(f"{video_id}: erro na detecção de cenas: {e}")
+                logger.warning(f"[EMBED] {video_id} erro detect_scenes: {e}")
                 scenes = []
 
             if not scenes:
-                import cv2
+                logger.info(f"[EMBED] {video_id} sem cenas detectadas - 1 frame/s")
                 cap   = cv2.VideoCapture(video_path)
                 fps   = cap.get(cv2.CAP_PROP_FPS) or 30.0
                 total = cap.get(cv2.CAP_PROP_FRAME_COUNT)
                 cap.release()
-                scenes = [(0.0, total / fps)]
+                duration = total / fps
+                scenes = [(0.0, duration)]
+                logger.info(f"[EMBED] {video_id} fallback: fps={fps} duracao={duration:.1f}s step={int(fps)}")
 
-            logger.info(f"{video_id}: {len(scenes)} cenas detectadas.")
+            logger.info(f"[EMBED] {video_id} {len(scenes)} cenas para segmentar")
 
-            # ── Segmentação sem limites ───────────────────────────────────────
-            all_segments = []
-            for scene_idx, (start, end) in enumerate(scenes):
-                if end - start < 1.0:
-                    continue
-                # trunca cenas > 5min (geralmente erro de detecção)
-                end = min(end, start + 300)
-                try:
-                    segs = ky.split_scene_into_segments(
-                        video_path, start_time=start, end_time=end,
-                        max_frames_per_segment=45,
+            # Segmenta + CLIP (stream ou batch)
+            mode = "batch" if CONFIG["batch_mode"] else "stream"
+            logger.info(f"[EMBED] {video_id} segmentando + CLIP ({mode}, device={device})...")
+            try:
+                if CONFIG["batch_mode"]:
+                    video_embs = ky.batch_segments(
+                        video_path, scenes, clip_model, clip_preprocess, device, max_frames=45,
                     )
-                    for seg in segs:
-                        seg["scene_index"]   = scene_idx
-                        seg["segment_index"] = seg.get("segment_index", 0)
-                        all_segments.append(seg)
-                except Exception as e:
-                    logger.warning(f"{video_id}: erro segmentação cena {scene_idx}: {e}")
-
-            if not all_segments:
-                logger.warning(f"{video_id}: nenhum segmento gerado.")
+                else:
+                    video_embs = ky.stream_segments(
+                        video_path, scenes, clip_model, clip_preprocess, device, max_frames=45,
+                    )
+                logger.info(f"[EMBED] {video_id} CLIP concluído: {len(video_embs)} embeddings")
+            except Exception as e:
+                logger.error(f"[EMBED] {video_id} erro {mode}_segments: {e}")
+                import traceback
+                logger.error(f"[EMBED] {video_id} traceback: {traceback.format_exc()}")
                 continue
 
-            logger.info(f"{video_id}: {len(all_segments)} segmentos.")
+            if not video_embs:
+                total_scenes = len(scenes)
+                if total_scenes == 1 and scenes[0][0] == 0.0:
+                    logger.warning(f"[EMBED] {video_id} video sem cenas e sem frames viaveis - "
+                                   f"provavelmente arquivo corrompido ou vazio. Pulando.")
+                else:
+                    logger.warning(f"[EMBED] {video_id} {total_scenes} cenas mas 0 embeddings - "
+                                   f"frames corrompidos ou codec nao suportado. Pulando.")
+                continue
 
-            # ── CLIP — libera frames imediatamente após cada segmento ─────────
-            video_embs = []
-            for idx, seg in enumerate(all_segments):
-                try:
-                    vector = emb.embed_window(
-                        seg["frames"], clip_model, clip_preprocess, device, method="mean"
-                    )
-                    if vector is not None:
-                        video_embs.append({
-                            "scene_index":   seg["scene_index"],
-                            "part_index":    seg["segment_index"],
-                            "timestamp_sec": seg["timestamp_sec"],
-                            "center_frame":  seg["center_frame"],
-                            "embedding":     vector,
-                        })
-                except Exception as e:
-                    logger.warning(f"{video_id}: erro CLIP seg {idx}: {e}")
-                finally:
-                    seg.pop("frames", None)  # libera frames imediatamente
-
-                if idx % 10 == 0:
-                    gc.collect()
-                    if torch.cuda.is_available():
-                        torch.cuda.empty_cache()
-
-            # ── CLAP ──────────────────────────────────────────────────────────
+            # CLAP
+            logger.info(f"[EMBED] {video_id} iniciando CLAP (segment_duration=1.5s)")
             try:
                 audio_embs = emb.generate_audio_embeddings_from_segments(
-                    video_path=video_path, segments=all_segments,
+                    video_path=video_path, segments=video_embs,
                     clap_model=clap_model, device=device, segment_duration=1.5,
                 )
+                logger.info(f"[EMBED] {video_id} CLAP concluído: {len(audio_embs)} embeddings")
                 for i, ae in enumerate(audio_embs):
-                    seg = all_segments[i] if i < len(all_segments) else None
-                    ae["timestamp_sec"] = seg["timestamp_sec"] if seg else 0.0
-                    ae["scene_index"]   = seg["scene_index"]   if seg else -1
-                    ae["part_index"]    = seg.get("segment_index", i) if seg else i
+                    seg_ts = video_embs[i]["timestamp_sec"] if i < len(video_embs) else 0.0
+                    ae["timestamp_sec"] = seg_ts
+                    ae["scene_index"]   = video_embs[i].get("scene_index", -1) if i < len(video_embs) else -1
+                    ae["part_index"]    = i
                     ae["center_frame"]  = -1
             except Exception as e:
-                logger.warning(f"{video_id}: erro CLAP: {e}")
+                logger.warning(f"[EMBED] {video_id} erro CLAP: {e}")
                 audio_embs = []
 
-            logger.info(f"{video_id}: {len(video_embs)} vídeo | {len(audio_embs)} áudio")
+            logger.info(f"[EMBED] {video_id} resultados: {len(video_embs)} video | {len(audio_embs)} audio")
 
-            # ── Salva em disco e libera RAM ───────────────────────────────────
+            # Thumbnail embedding
+            logger.info(f"[EMBED] {video_id} gerando thumbnail embedding...")
+            try:
+                feature_thumb = ind.fetch_thumbnail_embedding(
+                    video_id, clip_model, clip_preprocess, device
+                )
+            except Exception as e:
+                logger.warning(f"[EMBED] {video_id} erro thumbnail: {e}")
+                feature_thumb = None
+
+            # Salva em disco e libera RAM
             os.makedirs(EMBEDDINGS_DIR, exist_ok=True)
+            logger.info(f"[EMBED] {video_id} salvando video_embs em {video_json}...")
             emb.save_embeddings_json(video_embs, path=video_json)
             if audio_embs:
+                logger.info(f"[EMBED] {video_id} salvando audio_embs em {audio_json}...")
                 emb.save_embeddings_json(audio_embs, path=audio_json)
+            else:
+                logger.info(f"[EMBED] {video_id} sem audio_embs - arquivo não salvo")
 
-            del video_embs, audio_embs, all_segments
+            logger.info(f"[EMBED] {video_id} liberando memoria...")
+            del video_embs, audio_embs
             gc.collect()
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
 
-            # Coloca só os paths na fila — não os vetores
-            index_queue.put((video_id, label, title, video_json, audio_json))
-            logger.info(f"{video_id}: enviado para indexação.")
+            index_queue.put((video_id, meta, video_json, audio_json, feature_thumb))
+            logger.info(f"[EMBED] {video_id} enviado para fila de indexação.")
 
         except Exception as e:
-            logger.error(f"{video_id}: erro embedding: {e}")
+            logger.error(f"[EMBED] {video_id} erro no processamento: {type(e).__name__}: {e}")
+            import traceback
+            logger.error(f"[EMBED] {video_id} traceback: {traceback.format_exc()}")
         finally:
-            download_queue.task_done()
+            embed_queue.task_done()
             gc.collect()
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
+            logger.info(f"[EMBED] {video_id} task_done sinalizado para fila.")
 
 
-# ─── Worker de indexação ──────────────────────────────────────────────────────
-def worker_index(es, clip_model, clip_preprocess, device, taxonomy_lookup: dict) -> None:
+# Worker de indexação
+def worker_index(es, taxonomy_lookup: dict) -> None:
     while True:
         item = index_queue.get()
         try:
@@ -217,9 +206,8 @@ def worker_index(es, clip_model, clip_preprocess, device, taxonomy_lookup: dict)
                 logger.info("Index worker finalizando.")
                 return
 
-            video_id, label, title, video_json, audio_json = item
+            video_id, meta, video_json, audio_json, feature_thumb = item
 
-            # Lê do disco — não carrega da RAM do worker_embed
             with open(video_json) as f:
                 video_embs = json.load(f)
             with open(audio_json) as f:
@@ -229,11 +217,23 @@ def worker_index(es, clip_model, clip_preprocess, device, taxonomy_lookup: dict)
                 if isinstance(e_["embedding"], list):
                     e_["embedding"] = np.array(e_["embedding"], dtype=np.float32)
 
+            label = meta.get("anet_label", "")
+            title = meta.get("title", "")
             feature_categorias = ind.get_feature_categorias(label, taxonomy_lookup)
-            feature_desc, keywords = ind.build_text_metadata(label, title, taxonomy_lookup)
-            feature_thumb = ind.fetch_thumbnail_embedding(
-                video_id, clip_model, clip_preprocess, device
-            )
+            feature_desc = meta.get("feature_desc", "")
+            keywords = meta.get("keywords", "")
+
+            extra_meta = {
+                "description":  meta.get("description", ""),
+                "transcript":   meta.get("transcript", ""),
+                "upload_date":  meta.get("upload_date", ""),
+                "duration_sec": meta.get("duration", 0),
+                "view_count":   meta.get("view_count", 0),
+                "like_count":   meta.get("like_count", 0),
+                "channel":      meta.get("channel", ""),
+                "tags":         meta.get("tags", []),
+                "categories":   meta.get("categories", []),
+            }
 
             if video_embs:
                 ind.index_embeddings_bulk(
@@ -242,6 +242,7 @@ def worker_index(es, clip_model, clip_preprocess, device, taxonomy_lookup: dict)
                     feature_categorias=feature_categorias,
                     feature_desc=feature_desc, keywords=keywords,
                     feature_thumb=feature_thumb, modality="video",
+                    **extra_meta,
                 )
             if audio_embs:
                 ind.index_embeddings_bulk(
@@ -250,9 +251,10 @@ def worker_index(es, clip_model, clip_preprocess, device, taxonomy_lookup: dict)
                     feature_categorias=feature_categorias,
                     feature_desc=feature_desc, keywords=keywords,
                     feature_thumb=feature_thumb, modality="audio",
+                    **extra_meta,
                 )
 
-            logger.info(f"{video_id}: indexado ✓")
+            logger.info(f"{video_id}: indexado")
 
             del video_embs, audio_embs
             gc.collect()
@@ -263,8 +265,53 @@ def worker_index(es, clip_model, clip_preprocess, device, taxonomy_lookup: dict)
             index_queue.task_done()
 
 
-# ─── Pipeline principal ───────────────────────────────────────────────────────
-def main_index_fast() -> None:
+# Gera campos sintéticos se ausentes
+def _ensure_synthetic_fields(meta: dict, taxonomy_lookup: dict) -> dict:
+    if not meta.get("feature_desc") or not meta.get("keywords"):
+        label = meta.get("anet_label", "")
+        title = meta.get("title", "")
+        fd, kw = ind.build_text_metadata(label, title, taxonomy_lookup)
+        if not meta.get("feature_desc"):
+            meta["feature_desc"] = fd
+        if not meta.get("keywords"):
+            meta["keywords"] = kw
+    return meta
+
+
+# Pipeline principal
+def _load_corpus(corpus_path: str) -> dict:
+    """Carrega corpus.jsonl no formato BEIR e converte para dict {video_id: meta}."""
+    meta = {}
+    with open(corpus_path, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            doc = json.loads(line)
+            vid = doc["_id"]
+            # Extrai campos do corpus para o formato esperado pelo indexador
+            m = doc.get("metadata", {})
+            meta[vid] = {
+                "title": doc.get("title", ""),
+                "description": m.get("description", doc.get("text", "")[:500]),
+                "tags": m.get("tags", []),
+                "categories": m.get("categories", []),
+                "duration": m.get("duration", 0),
+                "view_count": m.get("view_count", 0),
+                "like_count": m.get("like_count", 0),
+                "channel": m.get("channel", ""),
+                "upload_date": m.get("upload_date", ""),
+                "transcript": m.get("transcript", ""),
+                "feature_desc": m.get("feature_desc", ""),
+                "keywords": m.get("keywords", ""),
+                "anet_label": m.get("anet_label", ""),
+                "anet_subset": m.get("anet_subset", ""),
+                "status": m.get("status", "downloaded"),
+            }
+    return meta
+
+
+def main_index_fast(window: int = 0, offset: int = 0, input_file: str | None = None, use_corpus: bool = False) -> None:
     global_start = time.time()
 
     os.makedirs(VIDEO_DIR, exist_ok=True)
@@ -277,32 +324,72 @@ def main_index_fast() -> None:
     logger.info("Carregando modelos CLIP e CLAP...")
     clip_model, clip_preprocess, clap_model, device = emb.load_all_models()
 
-    BASE_DIR  = os.path.dirname(os.path.abspath(__file__))
-    json_path = os.path.join(BASE_DIR, "..", "data", "activity_net.v1-3.min.json")
-    ind.ensure_activitynet_json(json_path)
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    anet_json = os.path.join(BASE_DIR, "..", "data", "activity_net.v1-3.min.json")
+    taxonomy = ind.build_taxonomy_lookup(anet_json)
 
-    dataset  = ind.load_activitynet(json_path)
-    taxonomy = ind.build_taxonomy_lookup(json_path)
+    # Carrega metadados do corpus ou do JSON tradicional
+    if use_corpus:
+        corpus_path = input_file or os.path.join(BASE_DIR, "..", "data", "corpus", "corpus.jsonl")
+        if not os.path.exists(corpus_path):
+            logger.warning(f"Corpus não encontrado: {corpus_path}")
+            return
+        all_meta = _load_corpus(corpus_path)
+        logger.info(f"Total de entradas no corpus: {len(all_meta)}")
+        meta_source = "corpus"
+    else:
+        if input_file is None:
+            input_file = os.path.join(BASE_DIR, "..", "data", "metadata", "videos_metadata.json")
+        if not os.path.exists(input_file):
+            logger.warning(f"Arquivo de metadados não encontrado: {input_file}")
+            logger.info(f"Criando arquivo vazio: {input_file}")
+            os.makedirs(os.path.dirname(input_file), exist_ok=True)
+            with open(input_file, "w") as f:
+                json.dump({}, f)
+        all_meta = ind.load_filtered_metadata(input_file)
+        logger.info(f"Total de entradas em {os.path.basename(input_file)}: {len(all_meta)}")
+        meta_source = "metadata"
 
-    validation = [
-        (vid, meta) for vid, meta in dataset.items()
-        if meta["subset"] == "validation"
-    ][:MAX_VIDEOS]
+    # Cruza com MP4s existentes em disco
+    mp4_ids = set()
+    if os.path.isdir(VIDEO_DIR):
+        for fname in os.listdir(VIDEO_DIR):
+            if fname.endswith(".mp4"):
+                mp4_ids.add(fname.replace(".mp4", ""))
 
-    logger.info(f"Validação total: {len(validation)}")
+    candidates = sorted(
+        vid for vid in all_meta if vid in mp4_ids
+    )
+    logger.info(f"Vídeos com MP4 em disco: {len(mp4_ids)} | Com metadados: {len(candidates)} (fonte: {meta_source})")
 
-    to_process = [
-        (vid, meta) for vid, meta in validation
-        if not ind.already_indexed(es, vid)
-    ]
+    # Aplica offset na lista completa
+    if offset > 0:
+        candidates = candidates[offset:]
+        logger.info(f"Offset aplicado: pulando {offset} videos")
 
-    logger.info(f"Para processar: {len(to_process)}")
+    # Filtra já indexados: exige ES + embeddings em disco (AND)
+    def _has_embeddings_disk(vid: str) -> bool:
+        return (
+            os.path.exists(os.path.join(EMBEDDINGS_DIR, f"{vid}_video.json"))
+            and os.path.exists(os.path.join(EMBEDDINGS_DIR, f"{vid}_audio.json"))
+        )
 
-    if not to_process:
+    pending = []
+    for vid in candidates:
+        if ind.already_indexed(es, vid) and _has_embeddings_disk(vid):
+            continue
+        meta = _ensure_synthetic_fields(all_meta[vid].copy(), taxonomy)
+        pending.append((vid, meta))
+        if window > 0 and len(pending) >= window:
+            break
+
+    logger.info(f"JA indexados (ES + disco): {len(candidates) - len(pending)} | NOVOS a processar: {len(pending)}")
+
+    if not pending:
         logger.info("Nada para processar.")
         return
 
-    # Embedding thread (1 — GPU)
+    # Embedding thread (1 ~ GPU)
     embed_thread = threading.Thread(
         target=worker_embed,
         args=(clip_model, clip_preprocess, clap_model, device, 1),
@@ -310,11 +397,11 @@ def main_index_fast() -> None:
     )
     embed_thread.start()
 
-    # Index threads (N — CPU)
+    # Index threads (N ~ CPU, sem GPU)
     index_threads = [
         threading.Thread(
             target=worker_index,
-            args=(es, clip_model, clip_preprocess, device, taxonomy),
+            args=(es, taxonomy),
             daemon=False,
         )
         for _ in range(INDEX_WORKERS)
@@ -322,27 +409,65 @@ def main_index_fast() -> None:
     for t in index_threads:
         t.start()
 
-    # Downloads em paralelo
-    logger.info(f"Iniciando downloads ({DOWNLOAD_WORKERS} workers)...")
-    with concurrent.futures.ThreadPoolExecutor(max_workers=DOWNLOAD_WORKERS) as pool:
-        futures = [
-            pool.submit(worker_download, vid, meta, VIDEO_DIR)
-            for vid, meta in to_process
-        ]
-        concurrent.futures.wait(futures)
+    # Alimenta fila de embedding com vídeos já baixados
+    logger.info("Alimentando fila de embedding...")
+    for vid, meta in pending:
+        video_path = os.path.join(VIDEO_DIR, f"{vid}.mp4")
+        if os.path.exists(video_path):
+            embed_queue.put((vid, video_path, meta))
+        else:
+            logger.warning(f"{vid}: MP4 não encontrado em disco - pulando.")
 
-    logger.info("Downloads concluídos — sinalizando fim.")
-    download_queue.put(SENTINEL)
+    logger.info("Todos os vídeos enfileirados - sinalizando fim.")
+    embed_queue.put(SENTINEL)
 
-    download_queue.join()
+    embed_queue.join()
     embed_thread.join()
     index_queue.join()
     for t in index_threads:
         t.join()
 
     total = time.time() - global_start
-    logger.info(f"Pipeline concluído em {total / 60:.1f} min ({len(to_process)} vídeos)")
+    logger.info(f"Pipeline concluído em {total / 60:.1f} min ({len(pending)} vídeos)")
 
 
 if __name__ == "__main__":
-    main_index_fast()
+    parser = argparse.ArgumentParser(
+        description="Pipeline de indexacao de videos no Elasticsearch",
+    )
+    parser.add_argument(
+        "--window", "-w", type=int, default=0,
+        help="Quantidade de NOVOS videos a indexar (0 = todos os pendentes)",
+    )
+    parser.add_argument(
+        "--offset", "-o", type=int, default=0,
+        help="Pula os primeiros N videos da lista completa",
+    )
+    parser.add_argument(
+        "--input", "-i", type=str, default=None,
+        help="Arquivo JSON de metadados (default: data/metadata/videos_metadata.json)",
+    )
+    parser.add_argument(
+        "--batch", action="store_true",
+        help="Modo batch (carrega todos os frames na RAM, mais rapido mas consome mais memoria)",
+    )
+    parser.add_argument(
+        "--corpus", action="store_true",
+        help="Usa data/corpus/corpus.jsonl como fonte de metadados em vez do videos_metadata.json",
+    )
+
+    args = parser.parse_args()
+
+    if args.batch:
+        CONFIG["batch_mode"] = True
+
+    log_args = [
+        f"window={args.window or 'todos'}",
+        f"offset={args.offset}",
+        f"input={args.input or ('corpus.jsonl' if args.corpus else 'videos_metadata.json')}",
+        f"batch={CONFIG['batch_mode']}",
+        f"corpus={args.corpus}",
+    ]
+    logger.info(f"main_index iniciado com: {', '.join(log_args)}")
+
+    main_index_fast(window=args.window, offset=args.offset, input_file=args.input, use_corpus=args.corpus)

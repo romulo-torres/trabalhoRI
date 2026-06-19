@@ -8,12 +8,14 @@ Pillow
 scenedetect[opencv]
 
 # Deep Learning / Embeddings
-# (torch, torchvision, torchaudio instalados condicionalmente via scripts)
+torch
+torchvision
+torchaudio
 torchcodec
 ftfy
 regex
 tqdm
-#gc
+gc
 
 # CLIP (OpenAI)
 git+https://github.com/openai/CLIP.git
@@ -24,24 +26,16 @@ laion-clap
 # Elasticsearch
 elasticsearch==8.12.0
 
-# LLM providers (geração de consultas)
-openai
-anthropic
-google-genai
-requests
-
 # Interface web (opcional, mas útil para o frontend)
 streamlit
 
 # Utilidades
 scikit-learn
 transformers
-rank-bm25
 
 # Dataset / Download
 fsspec<=2025.10.0
 yt-dlp
-ffmpeg-python
 
 # Áudio (garantia extra)
 librosa

@@ -212,6 +212,354 @@ def split_scene_into_parts(
     cap.release()
     return parts
 
+# ==============================
+# 6. Fallback chain: torchcodec → subprocess ffmpeg
+# ==============================
+
+def _read_frames_fallback(video_path: str, fps: float, step: int) -> list[np.ndarray] | None:
+    import logging as _lg
+    import torch as _torch
+    if _torch.cuda.is_available():
+        _lg.getLogger("keyframes").info("CUDA disponivel — tentando torchcodec...")
+        try:
+            from torchcodec.decoders import VideoDecoder
+            decoder = VideoDecoder(video_path)
+            n = decoder.metadata.num_frames
+            indices = list(range(0, n, step))
+            tensor = decoder.get_frames_at(indices)
+            frames = [tensor[i].cpu().numpy()[..., ::-1].copy() for i in range(tensor.shape[0])]
+            _lg.getLogger("keyframes").info("torchcodec: %d frames", len(frames))
+            return frames
+        except Exception as e:
+            _lg.getLogger("keyframes").warning("torchcodec falhou (CUDA ativo): %s", e)
+    else:
+        _lg.getLogger("keyframes").info("CUDA indisponivel — pulando torchcodec")
+
+    _lg.getLogger("keyframes").info("Tentando ffmpeg subprocess...")
+    try:
+        import subprocess, json
+        probe = subprocess.check_output(
+            ["ffprobe", "-v", "error", "-select_streams", "v:0",
+             "-show_entries", "stream=width,height", "-of", "json", video_path],
+            stderr=subprocess.DEVNULL,
+        )
+        info = json.loads(probe)
+        w, h = info["streams"][0]["width"], info["streams"][0]["height"]
+        raw = subprocess.check_output(
+            ["ffmpeg", "-i", video_path, "-vf", "fps=1", "-f", "rawvideo",
+             "-pix_fmt", "bgr24", "-vcodec", "rawvideo", "-"],
+            stderr=subprocess.DEVNULL,
+        )
+        nbytes = w * h * 3
+        frames = [
+            np.frombuffer(raw[i:i+nbytes], dtype=np.uint8).reshape(h, w, 3)
+            for i in range(0, len(raw), nbytes)
+            if i + nbytes <= len(raw)
+        ]
+        _lg.getLogger("keyframes").info("ffmpeg subprocess: %d frames", len(frames))
+        return frames
+    except Exception as e:
+        _lg.getLogger("keyframes").warning("ffmpeg subprocess falhou: %s", e)
+
+    return None
+
+
+# ==============================
+# 7. Streaming: segmenta + embeda CLIP em 1 passada (baixa memoria)
+# Uso: substitui split_scene_into_segments + loop CLIP
+# ==============================
+def stream_segments(
+    video_path: str,
+    scenes: list,
+    model,
+    preprocess,
+    device: str,
+    max_frames: int = 45,
+) -> list[dict]:
+    """
+    Abre o video 1 vez, percorre cenas, amostra 1 frame por segundo,
+    agrupa frames em segmentos de ate max_frames, executa CLIP
+    embedding e descarta os frames. Uso de memoria constante:
+    ~40 MB (1 segmento de 45 frames).
+    """
+    import embeddings as emb
+    from logger import setup_logger
+
+    _log = setup_logger(name="keyframes")
+    _log.propagate = False
+
+    cap = cv2.VideoCapture(video_path, cv2.CAP_FFMPEG)
+    if not cap.isOpened():
+        cap = cv2.VideoCapture(video_path)
+    if not cap.isOpened():
+        raise IOError(f"Nao foi possivel abrir o video: '{video_path}'")
+    fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
+    total_frames = cap.get(cv2.CAP_PROP_FRAME_COUNT)
+    _log.debug("[stream_segments] fps=%.4f total_frames=%d", fps, total_frames)
+
+    # Testa leitura do primeiro frame
+    ret_test, _ = cap.read()
+    cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+    if not ret_test:
+        _log.warning("OpenCV nao leu o primeiro frame — tentando fallback...")
+        cap.release()
+        fallback_frames = _read_frames_fallback(video_path, fps, max(1, int(fps)))
+        if fallback_frames is None:
+            _log.warning("Fallback tambem falhou — retornando vazio")
+            return []
+        # Processa frames do fallback como se fossem streaming
+        results = []
+        buf = []
+        for idx, frame in enumerate(fallback_frames):
+            global_f = idx * max(1, int(fps))
+            if len(buf) == 0:
+                buf_start = global_f
+            buf.append(frame)
+            if len(buf) >= max_frames:
+                vector = emb.embed_window(buf, model, preprocess, device, method="mean")
+                center = buf_start + len(buf) // 2
+                results.append({"scene_index": 0, "part_index": len(results),
+                                "timestamp_sec": center / fps, "center_frame": center,
+                                "embedding": vector})
+                buf = []
+                buf_start = None
+        if buf:
+            vector = emb.embed_window(buf, model, preprocess, device, method="mean")
+            center = buf_start + len(buf) // 2
+            results.append({"scene_index": 0, "part_index": len(results),
+                            "timestamp_sec": center / fps, "center_frame": center,
+                            "embedding": vector})
+        return results
+
+    results = []
+    buf = []
+    buf_start = None
+    frames_read = 0
+    frames_expected = 0
+
+    step = max(1, int(fps))
+
+    for sc_idx, (start, end) in enumerate(scenes):
+        start_f = int(start * fps)
+        end_f = int(end * fps)
+        frames_expected += (end_f - start_f + 1)
+        if start_f != 0:
+            cap.set(cv2.CAP_PROP_POS_FRAMES, start_f)
+
+        for global_f in range(start_f, end_f + 1, step):
+            ret, frame = cap.read()
+            if not ret and global_f == start_f:
+                cap.set(cv2.CAP_PROP_POS_FRAMES, start_f)
+                ret, frame = cap.read()
+            if not ret:
+                _log.warning(
+                    "[stream_segments] cap.read() falhou no frame %d (scene %d / %d-%d)",
+                    global_f, sc_idx, start_f, end_f,
+                )
+                break
+            frames_read += 1
+            if len(buf) == 0:
+                buf_start = global_f
+            buf.append(frame)
+
+            if len(buf) >= max_frames:
+                vector = emb.embed_window(
+                    buf, model, preprocess, device, method="mean"
+                )
+                center = buf_start + len(buf) // 2
+                results.append({
+                    "scene_index": sc_idx,
+                    "part_index": len(results),
+                    "timestamp_sec": center / fps,
+                    "center_frame": center,
+                    "embedding": vector,
+                })
+                buf = []
+                buf_start = None
+
+    if buf:
+        vector = emb.embed_window(
+            buf, model, preprocess, device, method="mean"
+        )
+        center = buf_start + len(buf) // 2
+        results.append({
+            "scene_index": scenes[-1][0] if scenes else 0,
+            "part_index": len(results),
+            "timestamp_sec": center / fps,
+            "center_frame": center,
+            "embedding": vector,
+        })
+
+    cap.release()
+    if frames_read == 0 and frames_expected > 0:
+        _log.warning(
+            "[stream_segments] 0 frames lidos de %d esperados (total_frames=%.0f) — "
+            "codec/backend pode nao suportar decodificacao",
+            frames_expected, total_frames,
+        )
+    return results
+
+
+# ==============================
+# 7. Modo batch: carrega tudo na RAM e processa CLIP em lote
+# Uso: quando ha RAM suficiente (cloud, >8 GB disponivel)
+# ==============================
+def batch_segments(
+    video_path: str,
+    scenes: list,
+    model,
+    preprocess,
+    device: str,
+    max_frames: int = 45,
+) -> list[dict]:
+    """
+    Carrega frames amostrados (1 por segundo) do video na RAM,
+    agrupa em segmentos e processa CLIP em um unico batch GPU.
+    Mais rapido que stream_segments (1 chamada GPU vs N chamadas).
+    """
+    import torch
+    import embeddings as emb
+
+    cap = cv2.VideoCapture(video_path, cv2.CAP_FFMPEG)
+    if not cap.isOpened():
+        cap = cv2.VideoCapture(video_path)
+    if not cap.isOpened():
+        raise IOError(f"Nao foi possivel abrir o video: '{video_path}'")
+    fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
+
+    # Testa leitura do primeiro frame
+    ret_test, _ = cap.read()
+    cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+    if not ret_test:
+        cap.release()
+        from logger import setup_logger as _sl
+        _sl("keyframes").warning("batch_segments: OpenCV falhou, tentando fallback...")
+        fallback_frames = _read_frames_fallback(video_path, fps, max(1, int(fps)))
+        if fallback_frames is None:
+            return []
+        # Processa via batch: preprocessa todos e faz 1 chamada CLIP
+        step = max(1, int(fps))
+        # Build segments from fallback frames
+        buf = []
+        all_segments = []
+        for idx, frame in enumerate(fallback_frames):
+            global_f = idx * step
+            buf.append(frame)
+            if len(buf) >= max_frames:
+                center = global_f - len(buf) + 1 + len(buf) // 2
+                all_segments.append({"frames": buf, "center_frame": center,
+                                     "timestamp_sec": center / fps, "scene_index": 0})
+                buf = []
+        if buf:
+            center = (len(fallback_frames) - 1) * step - len(buf) + len(buf) // 2
+            all_segments.append({"frames": buf, "center_frame": center,
+                                 "timestamp_sec": center / fps, "scene_index": 0})
+        if not all_segments:
+            return []
+        frames_tensors = []
+        seg_counts = []
+        for seg in all_segments:
+            for frame in seg["frames"]:
+                frames_tensors.append(preprocess(emb.frame_to_pil(frame)))
+            seg_counts.append(len(seg["frames"]))
+            seg.pop("frames", None)
+        big_tensor = torch.stack(frames_tensors).to(device)
+        del frames_tensors
+        with torch.no_grad():
+            all_embeddings = model.encode_image(big_tensor)
+        all_embeddings = all_embeddings / all_embeddings.norm(dim=-1, keepdim=True)
+        del big_tensor
+        results = []
+        idx = 0
+        for s, seg in enumerate(all_segments):
+            n = seg_counts[s]
+            seg_emb = all_embeddings[idx:idx + n].mean(dim=0)
+            seg_emb = seg_emb / seg_emb.norm()
+            results.append({"scene_index": seg["scene_index"], "part_index": s,
+                            "timestamp_sec": seg["timestamp_sec"],
+                            "center_frame": seg["center_frame"],
+                            "embedding": seg_emb.cpu().numpy().flatten()})
+            idx += n
+        return results
+
+    step = max(1, int(fps))
+
+    # 1. Agrupa frames em segmentos (sem embed)
+    all_segments = []
+    buf = []
+
+    for sc_idx, (start, end) in enumerate(scenes):
+        start_f = int(start * fps)
+        end_f = int(end * fps)
+        cap.set(cv2.CAP_PROP_POS_FRAMES, start_f)
+
+        for global_f in range(start_f, end_f + 1, step):
+            ret, frame = cap.read()
+            if not ret:
+                break
+            buf.append(frame)
+
+            if len(buf) >= max_frames:
+                center = (global_f - len(buf) + 1) + len(buf) // 2
+                all_segments.append({
+                    "frames": buf,
+                    "center_frame": center,
+                    "timestamp_sec": center / fps,
+                    "scene_index": sc_idx,
+                })
+                buf = []
+
+    if buf:
+        center = (end_f if scenes else 0) - len(buf) + len(buf) // 2
+        all_segments.append({
+            "frames": buf,
+            "center_frame": center,
+            "timestamp_sec": center / fps,
+            "scene_index": scenes[-1][0] if scenes else 0,
+        })
+
+    cap.release()
+
+    if not all_segments:
+        return []
+
+    # 2. Preprocessa todos os frames em um tensor unico
+    frames_tensors = []
+    seg_counts = []
+    for seg in all_segments:
+        for frame in seg["frames"]:
+            frames_tensors.append(preprocess(emb.frame_to_pil(frame)))
+        seg_counts.append(len(seg["frames"]))
+        seg.pop("frames", None)
+
+    big_tensor = torch.stack(frames_tensors).to(device)
+    del frames_tensors
+
+    # 3. CLIP batch: 1 chamada GPU para todos os frames
+    with torch.no_grad():
+        all_embeddings = model.encode_image(big_tensor)
+    all_embeddings = all_embeddings / all_embeddings.norm(dim=-1, keepdim=True)
+    del big_tensor
+
+    # 4. Desagrupa embeddings por segmento (media intra-segmento)
+    results = []
+    idx = 0
+    for s, seg in enumerate(all_segments):
+        n = seg_counts[s]
+        seg_emb = all_embeddings[idx:idx+n].mean(dim=0)
+        seg_emb = seg_emb / seg_emb.norm()
+        results.append({
+            "scene_index": seg["scene_index"],
+            "part_index": s,
+            "timestamp_sec": seg["timestamp_sec"],
+            "center_frame": seg["center_frame"],
+            "embedding": seg_emb.cpu().numpy().flatten(),
+        })
+        idx += n
+
+    return results
+
+
 def split_scene_into_segments(
     video_path: str,
     start_time: float,

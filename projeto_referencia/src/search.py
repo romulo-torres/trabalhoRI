@@ -11,7 +11,7 @@ import index_elastic as ind
 from embeddings import embed_frame
 from logger import setup_logger
 
-logger = setup_logger("search", "./logs/pipeline.log")
+logger = setup_logger()
 
 
 # ==============================================================================

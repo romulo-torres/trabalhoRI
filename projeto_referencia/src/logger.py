@@ -12,8 +12,6 @@ def setup_logger(name="pipeline", log_file="./logs/pipeline.log", level=logging.
     if logger.hasHandlers():
         return logger
 
-    logger.propagate = False
-
     # formato do log
     formatter = logging.Formatter(
         "%(asctime)s | %(levelname)s | %(message)s",

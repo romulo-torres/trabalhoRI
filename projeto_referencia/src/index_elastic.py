@@ -28,11 +28,30 @@ os.environ["OPENCV_FFMPEG_LOGLEVEL"] = "quiet"
 
 
 # ==============================================================================
-# Metadados filtrados da coleção
+# ActivityNet — download do JSON de anotações
 # ==============================================================================
-def load_filtered_metadata(json_path: str) -> dict:
-    with open(json_path, encoding="utf-8") as f:
-        return json.load(f)
+def ensure_activitynet_json(json_path: str) -> None:
+    if os.path.exists(json_path):
+        print(f"Arquivo já existe: {json_path}")
+        return
+
+    os.makedirs(os.path.dirname(json_path), exist_ok=True)
+
+    url = "https://storage.googleapis.com/activitynet/annotations/activity_net.v1-3.min.json"
+    print("Baixando ActivityNet JSON com wget...")
+
+    try:
+        subprocess.run(["wget", "-O", json_path, url], check=True)
+    except Exception as e:
+        raise RuntimeError("Falha ao baixar ActivityNet com wget") from e
+
+    print("Download concluído!")
+
+
+def load_activitynet(json_path: str) -> dict:
+    with open(json_path) as f:
+        data = json.load(f)
+    return data["database"]
 
 
 # ==============================================================================
@@ -71,7 +90,7 @@ def build_text_metadata(label: str, title: str, taxonomy_lookup: dict) -> tuple[
 
 
 # ==============================================================================
-# Thumbnail - embedding via URL pública do YouTube
+# Thumbnail — embedding via URL pública do YouTube
 # ==============================================================================
 def fetch_thumbnail_embedding(
     video_id:   str,
@@ -183,6 +202,64 @@ def _parse_vtt(path: str) -> str:
 
 
 # ==============================================================================
+# Download de vídeo do YouTube via yt-dlp
+# ==============================================================================
+def download_video(
+    video_id:   str,
+    output_dir: str,
+    browser:    str = "firefox",
+) -> str | None:
+    output_path = os.path.join(output_dir, f"{video_id}.mp4")
+
+    if os.path.exists(output_path):
+        if _is_valid_mp4(output_path):
+            return output_path
+        else:
+            logger.warning(f"{video_id} corrompido — removendo e rebaixando.")
+            os.remove(output_path)
+
+    url = f"https://www.youtube.com/watch?v={video_id}"
+    try:
+        subprocess.run([
+            "yt-dlp",
+            "-f", "bestvideo[height<=480][ext=mp4]+bestaudio[ext=m4a]/best[height<=480][ext=mp4]",
+            "--merge-output-format", "mp4",
+            "--cookies-from-browser", browser,
+            "--no-write-info-json",
+            "--no-write-thumbnail",
+            "--no-playlist",
+            "--retries", "5",
+            "--fragment-retries", "5",
+            "-o", output_path,
+            url,
+        ], check=True)
+        return output_path if os.path.exists(output_path) else None
+    except subprocess.CalledProcessError as e:
+        logger.error(f"Falha ao baixar {video_id}: {e}")
+        return None
+    except Exception as e:
+        logger.error(f"Erro inesperado ao baixar {video_id}: {e}")
+        return None
+
+
+def _is_valid_mp4(path: str) -> bool:
+    try:
+        result = subprocess.run([
+            "ffprobe", "-v", "error",
+            "-show_entries", "format=duration",
+            "-of", "default=noprint_wrappers=1:nokey=1",
+            path
+        ], capture_output=True, text=True, timeout=15)
+        if result.returncode != 0 or not result.stdout.strip():
+            return False
+        if os.path.getsize(path) < 10_000:
+            return False
+        return True
+    except Exception:
+        return False
+
+
+# ==============================================================================
 # Detecção de cenas
 # ==============================================================================
 def detect_scenes(video_path: str, threshold: float = 30.0) -> list[tuple[float, float]]:
@@ -200,11 +277,9 @@ def detect_scenes(video_path: str, threshold: float = 30.0) -> list[tuple[float,
 # Conectar ao Elasticsearch
 # ==============================================================================
 def connect_elasticsearch(
-    host:    str | None = None,
+    host:    str = "http://localhost:9200",
     timeout: int = 30,
 ) -> Elasticsearch:
-    if host is None:
-        host = os.environ.get("ES_HOST", "http://localhost:9200")
     es = Elasticsearch(host, request_timeout=timeout)
     try:
         info = es.info()
@@ -219,7 +294,7 @@ def connect_elasticsearch(
 # ==============================================================================
 def create_index(es, index_name="video_index", dims=512):
     if es.indices.exists(index=index_name):
-        print(f"Índice '{index_name}' já existe - nenhuma ação necessária.")
+        print(f"Índice '{index_name}' já existe — nenhuma ação necessária.")
         return
 
     settings = {
@@ -398,11 +473,12 @@ def delete_index(es, index_name: str = "video_index") -> None:
         es.indices.delete(index=index_name)
         print(f"Índice '{index_name}' deletado.")
     else:
-        print(f"Índice '{index_name}' não existe - nenhuma ação.")
+        print(f"Índice '{index_name}' não existe — nenhuma ação.")
 
 
 # ==============================================================================
 # Verificar se vídeo já está indexado
+# MELHORIA: usa aggregation — 1 roundtrip ao ES em vez de 2 queries separadas
 # ==============================================================================
 def already_indexed(es, video_id: str, index_name: str = "video_index") -> bool:
     try:
@@ -431,7 +507,8 @@ def process_video(
     device,
     es,
     taxonomy_lookup:        dict[str, str] = {},
-    metadata:               dict           = {},
+    label:                  str            = "",
+    title:                  str            = "",
     max_frames_per_segment: int            = 45,
     segment_duration:       float          = 1.5,
     embeddings_dir:         str            = "./data/embeddings",
@@ -445,27 +522,28 @@ def process_video(
     video_json_path = os.path.join(embeddings_dir, f"{video_id}_video.json")
     audio_json_path = os.path.join(embeddings_dir, f"{video_id}_audio.json")
 
-    label = metadata.get("anet_label", "")
-    title = metadata.get("title", "")
     feature_categorias = get_feature_categorias(label, taxonomy_lookup)
-    feature_desc = metadata.get("feature_desc", "")
-    keywords = metadata.get("keywords", "")
+
+    meta       = fetch_video_metadata(video_id)
+    title      = title or meta.get("title", "")
+    transcript = fetch_subtitles_en(video_id)
+    feature_desc, keywords = build_text_metadata(label, title, taxonomy_lookup)
 
     extra_meta = {
-        "description":  metadata.get("description", ""),
-        "transcript":   metadata.get("transcript", ""),
-        "upload_date":  metadata.get("upload_date", ""),
-        "duration_sec": metadata.get("duration", 0),
-        "view_count":   metadata.get("view_count", 0),
-        "like_count":   metadata.get("like_count", 0),
-        "channel":      metadata.get("channel", ""),
-        "tags":         metadata.get("tags", []),
-        "categories":   metadata.get("categories", []),
+        "description":  meta.get("description", ""),
+        "transcript":   transcript,
+        "upload_date":  meta.get("upload_date", ""),
+        "duration_sec": meta.get("duration", 0),
+        "view_count":   meta.get("view_count", 0),
+        "like_count":   meta.get("like_count", 0),
+        "channel":      meta.get("channel", ""),
+        "tags":         meta.get("tags", []),
+        "categories":   meta.get("categories", []),
     }
 
-    # Caso 1: embeddings já existem no disco
+    # ── Caso 1: embeddings já existem no disco ────────────────────────────
     if os.path.exists(video_json_path) and os.path.exists(audio_json_path):
-        logger.info(f"{video_id}: embeddings encontrados no disco - carregando para indexar.")
+        logger.info(f"{video_id}: embeddings encontrados no disco — carregando para indexar.")
 
         with open(video_json_path) as f:
             all_video_embs = json.load(f)
@@ -502,7 +580,7 @@ def process_video(
         logger.info(f"Indexado (cache): {video_id} (vídeo + áudio)")
         return
 
-    # Caso 2: extrai do víde
+    # ── Caso 2: extrai do vídeo ───────────────────────────────────────────
     feature_thumb_vec = fetch_thumbnail_embedding(video_id, clip_model, clip_preprocess, device)
 
     if feature_thumb_vec is not None:
@@ -626,17 +704,19 @@ def process_video(
 
 # ==============================================================================
 # Processar todos os vídeos locais
+# MELHORIA: ThreadPoolExecutor para paralelizar metadados/download enquanto
+#           o embedding na GPU permanece sequencial (evita contenção de VRAM).
 # ==============================================================================
 def process_local_videos(
-    video_dir:         str,
+    video_dir:       str,
     clip_model,
     clip_preprocess,
     clap_model,
     device,
     es,
-    taxonomy_lookup:   dict[str, str] = {},
-    filtered_metadata: dict           = {},
-    max_workers:       int            = 4,
+    taxonomy_lookup: dict[str, str] = {},
+    anet_database:   dict           = {},
+    max_workers:     int            = 4,
 ) -> None:
     filenames = [f for f in sorted(os.listdir(video_dir)) if f.endswith(".mp4")]
 
@@ -644,6 +724,7 @@ def process_local_videos(
         logger.warning(f"Nenhum arquivo .mp4 encontrado em '{video_dir}'.")
         return
 
+    # Pré-filtra vídeos já indexados em paralelo (1 roundtrip por vídeo, mas I/O bound)
     def check_indexed(filename: str) -> tuple[str, bool]:
         video_id = filename.replace(".mp4", "")
         return video_id, already_indexed(es, video_id)
@@ -655,22 +736,30 @@ def process_local_videos(
         for future in as_completed(futures):
             video_id, indexed = future.result()
             if indexed:
-                logger.info(f"{video_id} já indexado - pulando.")
+                logger.info(f"{video_id} já indexado — pulando.")
             else:
                 pending.append(video_id)
 
     logger.info(f"{len(pending)} vídeo(s) para processar.")
 
+    # Embedding e indexação permanecem sequenciais (GPU não é thread-safe)
     for video_id in sorted(pending):
         video_path = os.path.join(video_dir, f"{video_id}.mp4")
 
-        meta = filtered_metadata.get(video_id, {})
+        label = ""
+        title = ""
+        if video_id in anet_database:
+            entry       = anet_database[video_id]
+            annotations = entry.get("annotations", [])
+            if annotations:
+                label = annotations[0].get("label", "")
+            title = entry.get("url", "")
 
         try:
             process_video(
                 video_path, video_id,
                 clip_model, clip_preprocess, clap_model, device, es,
-                taxonomy_lookup=taxonomy_lookup, metadata=meta,
+                taxonomy_lookup=taxonomy_lookup, label=label, title=title,
             )
         except Exception as e:
             logger.error(f"Erro fatal no vídeo {video_id}: {e}")
