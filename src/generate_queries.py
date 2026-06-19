@@ -374,7 +374,7 @@ def export_beir(state: dict, queries_jsonl: Path, qrels_tsv: Path, query_to_vide
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Gera 4 consultas textuais (factoid, keyword, natural, verbose) por video via LLM",
+        description="Gera 2 consultas textuais (factoid, keyword) por video via LLM",
     )
     parser.add_argument("--input", type=Path, default=_path("data", "metadata", "videos_metadata.json"),
                         help="JSON de entrada (default: videos_metadata.json)")

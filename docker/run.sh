@@ -52,7 +52,7 @@ case "${1:-help}" in
         ;;
     queries)
         shift
-        echo "Gerando 4 consultas por video via LLM... args: $@"
+        echo "Gerando 2 consultas por video (factoid + keyword) via LLM... args: $@"
         cd "$COMPOSE_DIR/.."
         python src/generate_queries.py "$@"
         ;;

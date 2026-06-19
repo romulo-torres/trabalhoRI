@@ -54,7 +54,7 @@ switch ($command) {
         docker compose build @buildArgs system
     }
     "queries" {
-        Write-Host "Gerando 4 consultas por video via LLM... args: $args"
+        Write-Host "Gerando 2 consultas por video (factoid + keyword) via LLM... args: $args"
         Set-Location $composeDir\..
         & python src/generate_queries.py @args
     }
