@@ -46,3 +46,7 @@ ffmpeg-python
 # Áudio (garantia extra)
 librosa
 soundfile
+
+# Teste estatístico
+matplotlib
+scipy
