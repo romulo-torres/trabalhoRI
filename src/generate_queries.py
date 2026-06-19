@@ -64,8 +64,9 @@ class OpenAIProvider:
         resp = client.chat.completions.create(
             model=model or "gpt-4o",
             messages=[{"role": "user", "content": prompt}],
-            temperature=0.7, max_tokens=512,
+            max_completion_tokens=4096,
         )
+        print(resp)
         return resp.choices[0].message.content.strip()
 
 
@@ -76,7 +77,7 @@ class AnthropicProvider:
         client = Anthropic(api_key=api_key)
         resp = client.messages.create(
             model=model or "claude-sonnet-4-20250514",
-            max_tokens=512, temperature=0.7,
+            max_completion_tokens=512, temperature=0.7,
             messages=[{"role": "user", "content": prompt}],
         )
         return resp.content[0].text.strip()
@@ -102,7 +103,7 @@ class DeepSeekProvider:
         resp = client.chat.completions.create(
             model=model or "deepseek-chat",
             messages=[{"role": "user", "content": prompt}],
-            temperature=0.7, max_tokens=512,
+            temperature=0.7, max_completion_tokens=512,
         )
         return resp.choices[0].message.content.strip()
 
@@ -116,7 +117,7 @@ class OpenRouterProvider:
         resp = client.chat.completions.create(
             model=model or "openai/gpt-oss-120b:free",
             messages=[{"role": "user", "content": prompt}],
-            temperature=0.7, max_tokens=512,
+            temperature=0.7, max_completion_tokens=512,
         )
         return resp.choices[0].message.content.strip()
 
@@ -130,7 +131,7 @@ class LMStudioProvider:
         resp = client.chat.completions.create(
             model=model or "local-model",
             messages=[{"role": "user", "content": prompt}],
-            temperature=0.7, max_tokens=512,
+            temperature=0.7, max_completion_tokens=512,
         )
         return resp.choices[0].message.content.strip()
 
@@ -204,29 +205,74 @@ def build_prompt(entry: dict) -> str:
 # ---------------------------------------------------------------------------
 # Parse LLM response
 # ---------------------------------------------------------------------------
-
 def _parse_queries_response(text: str, video_id: str) -> list[dict]:
     """Extrai array JSON da resposta do LLM."""
+
+    if text is None:
+        raise ValueError(f"{video_id}: resposta vazia (None)")
+
     text = text.strip()
+
+    # Remove fences markdown
     if text.startswith("```"):
-        text = re.sub(r"^```(?:json)?\s*", "", text)
+        text = re.sub(r"^```(?:json)?\s*", "", text, flags=re.IGNORECASE)
         text = re.sub(r"\s*```$", "", text)
+
     try:
         parsed = json.loads(text)
-    except json.JSONDecodeError:
-        match = re.search(r"\[\s*\{.*?\}\s*\]", text, re.DOTALL)
-        if match:
-            parsed = json.loads(match.group())
-        else:
-            raise
+
+    except json.JSONDecodeError as e:
+
+        print("\n" + "="*80)
+        print(f"JSON ERROR ({video_id})")
+        print("="*80)
+        print(f"Erro: {e}")
+        print("Resposta recebida:")
+        print(repr(text[:3000]))
+        print("="*80)
+
+        # Procura o primeiro array JSON da resposta
+        match = re.search(r"\[[\s\S]*\]", text)
+
+        if not match:
+            raise ValueError(
+                f"{video_id}: nenhum array JSON encontrado.\n"
+                f"Resposta: {repr(text[:500])}"
+            )
+
+        extracted = match.group()
+
+        print("\nJSON extraído:")
+        print(repr(extracted[:1000]))
+
+        parsed = json.loads(extracted)
+
     if not isinstance(parsed, list):
-        raise ValueError("Resposta nao e um array JSON")
+        raise ValueError(
+            f"{video_id}: resposta não é um array JSON ({type(parsed)})"
+        )
+
     results = []
+
     for item in parsed:
-        qtype = item.get("type", "natural")
-        query = item.get("query", "").strip()
+
+        if not isinstance(item, dict):
+            continue
+
+        qtype = str(item.get("type", "natural"))
+        query = str(item.get("query", "")).strip()
+
         if query:
-            results.append({"type": qtype, "query": query})
+            results.append({
+                "type": qtype,
+                "query": query
+            })
+
+    if not results:
+        raise ValueError(
+            f"{video_id}: nenhuma consulta válida encontrada"
+        )
+
     return results
 
 

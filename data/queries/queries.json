@@ -1,0 +1,2977 @@
+{
+  "--1DO2V4K74": {
+    "queries": [
+      {
+        "id": "q_000001",
+        "type": "factoid",
+        "query": "Who is climbing the prominent fissure route?"
+      },
+      {
+        "id": "q_000002",
+        "type": "keyword",
+        "query": "fissure ascent footage cliff techniques"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T01:47:24.197290+00:00"
+  },
+  "-01K1HxqPB8": {
+    "queries": [
+      {
+        "id": "q_000003",
+        "type": "factoid",
+        "query": "What stance do rikishi use at start?"
+      },
+      {
+        "id": "q_000004",
+        "type": "keyword",
+        "query": "rikishi stance and shove exercise demo"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T01:47:35.015120+00:00"
+  },
+  "-02DygXbn6w": {
+    "queries": [
+      {
+        "id": "q_000005",
+        "type": "factoid",
+        "query": "How did the rider fall backwards?"
+      },
+      {
+        "id": "q_000006",
+        "type": "keyword",
+        "query": "action cam snowboard backward fall steep icy slope"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T01:47:42.330799+00:00"
+  },
+  "-0r0HEwAYiQ": {
+    "queries": [
+      {
+        "id": "q_000007",
+        "type": "factoid",
+        "query": "Where is the brush-roll switch located?"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T01:47:48.542702+00:00"
+  },
+  "-5Q7iNtaWCU": {
+    "queries": [
+      {
+        "id": "q_000008",
+        "type": "factoid",
+        "query": "Which team won the indoor school ball game?"
+      },
+      {
+        "id": "q_000009",
+        "type": "keyword",
+        "query": "indoor gym ball game highlights"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T01:47:55.087310+00:00"
+  },
+  "-5c9WHk408g": {
+    "queries": [
+      {
+        "id": "q_000010",
+        "type": "factoid",
+        "query": "Who calls eliminations during the run?"
+      },
+      {
+        "id": "q_000011",
+        "type": "keyword",
+        "query": "melee takedown run helmetcam outdoor arena"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T01:48:07.734694+00:00"
+  },
+  "-8awLlFLcQc": {
+    "queries": [
+      {
+        "id": "q_000012",
+        "type": "factoid",
+        "query": "How is a back-mounted vacuum used for ceilings?"
+      },
+      {
+        "id": "q_000013",
+        "type": "keyword",
+        "query": "worker using back-mounted vacuum on high vents"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T01:48:17.162102+00:00"
+  },
+  "-A6e83tl4Y8": {
+    "queries": [
+      {
+        "id": "q_000014",
+        "type": "factoid",
+        "query": "Who performs the jump serve?"
+      },
+      {
+        "id": "q_000015",
+        "type": "keyword",
+        "query": "young player spike indoor court highlights"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T01:48:28.706347+00:00"
+  },
+  "-CEi03j4-Bw": {
+    "queries": [
+      {
+        "id": "q_000016",
+        "type": "factoid",
+        "query": "How many children are shaping sand sculptures?"
+      },
+      {
+        "id": "q_000017",
+        "type": "keyword",
+        "query": "person eating cardboard box near sand sculptures"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T01:48:39.283031+00:00"
+  },
+  "-DpnaHTk8PA": {
+    "queries": [
+      {
+        "id": "q_000018",
+        "type": "factoid",
+        "query": "Who won the men's heavyweight arm wrestle final?"
+      },
+      {
+        "id": "q_000019",
+        "type": "keyword",
+        "query": "arm wrestle championship final highlights"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T01:48:47.430512+00:00"
+  },
+  "-E9YQ_Uhu50": {
+    "queries": [
+      {
+        "id": "q_000020",
+        "type": "factoid",
+        "query": "Is the violinist seated while playing?"
+      },
+      {
+        "id": "q_000021",
+        "type": "keyword",
+        "query": "novice violinist bowing and fingering close-up"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T01:49:00.750952+00:00"
+  },
+  "-FWGLSfI13Q": {
+    "queries": [
+      {
+        "id": "q_000022",
+        "type": "factoid",
+        "query": "How to safely cut a pumpkin with a small knife?"
+      },
+      {
+        "id": "q_000023",
+        "type": "keyword",
+        "query": "parent helping child carve pumpkin"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T01:49:11.024059+00:00"
+  },
+  "-GRvxWH4axc": {
+    "queries": [
+      {
+        "id": "q_000024",
+        "type": "factoid",
+        "query": "Which Mexican beach is featured?"
+      },
+      {
+        "id": "q_000025",
+        "type": "keyword",
+        "query": "woman swings stick at hanging piñata beach"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T01:49:21.457586+00:00"
+  },
+  "-Jp86pFKlsw": {
+    "queries": [
+      {
+        "id": "q_000026",
+        "type": "factoid",
+        "query": "How do dogs learn frisbee-catching tricks?"
+      },
+      {
+        "id": "q_000027",
+        "type": "keyword",
+        "query": "frisbee dog tricks park demonstration"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T01:49:30.226400+00:00"
+  },
+  "-MFzpFMdWZs": {
+    "queries": [
+      {
+        "id": "q_000028",
+        "type": "factoid",
+        "query": "Who shaves a leg on camera?"
+      },
+      {
+        "id": "q_000029",
+        "type": "keyword",
+        "query": "man shaving leg home comedy clip"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T01:49:39.482823+00:00"
+  },
+  "-OH1BDqao9w": {
+    "queries": [
+      {
+        "id": "q_000030",
+        "type": "factoid",
+        "query": "How many attendants rinse vehicles?"
+      },
+      {
+        "id": "q_000031",
+        "type": "keyword",
+        "query": "workers polishing car exterior at shop"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T01:49:47.459064+00:00"
+  },
+  "-OLPVREPy6Y": {
+    "queries": [
+      {
+        "id": "q_000032",
+        "type": "factoid",
+        "query": "What brush for creating an aged finish?"
+      },
+      {
+        "id": "q_000033",
+        "type": "keyword",
+        "query": "furniture aging brush wipe technique"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T01:49:56.300236+00:00"
+  },
+  "-SCRtjT7dto": {
+    "queries": [
+      {
+        "id": "q_000034",
+        "type": "factoid",
+        "query": "Why rinse foraged greens thoroughly before eating?"
+      },
+      {
+        "id": "q_000035",
+        "type": "keyword",
+        "query": "foraged greens kitchen prep tutorial"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T01:50:03.404113+00:00"
+  },
+  "-UwqKYkkKlU": {
+    "queries": [
+      {
+        "id": "q_000036",
+        "type": "factoid",
+        "query": "What equipment does the instructor hold?"
+      },
+      {
+        "id": "q_000037",
+        "type": "keyword",
+        "query": "indoor cycling core and dumbbell routine"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T01:50:11.617529+00:00"
+  },
+  "-ZBsdK10Trs": {
+    "queries": [
+      {
+        "id": "q_000038",
+        "type": "factoid",
+        "query": "Why wear a head camera during kids' ball games?"
+      },
+      {
+        "id": "q_000039",
+        "type": "keyword",
+        "query": "kids birthday ball game headcam highlights"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T01:50:21.607983+00:00"
+  },
+  "-_gDSRlC1kg": {
+    "queries": [
+      {
+        "id": "q_000040",
+        "type": "factoid",
+        "query": "Who is the energetic veteran curler?"
+      },
+      {
+        "id": "q_000041",
+        "type": "keyword",
+        "query": "hyped curler celebration end of game"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T01:50:30.531887+00:00"
+  },
+  "-bqaXU4s8Qs": {
+    "queries": [
+      {
+        "id": "q_000042",
+        "type": "factoid",
+        "query": "What crop surrounds the wash area?"
+      },
+      {
+        "id": "q_000043",
+        "type": "keyword",
+        "query": "worker power-washing dirty car in rural fields"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T01:50:40.552171+00:00"
+  },
+  "-doxoUNGLJE": {
+    "queries": [
+      {
+        "id": "q_000044",
+        "type": "factoid",
+        "query": "What must change when fitting larger Volvo wheels?"
+      },
+      {
+        "id": "q_000045",
+        "type": "keyword",
+        "query": "installing larger wheels Volvo tutorial"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T01:50:47.745128+00:00"
+  },
+  "-erT3ckPkAg": {
+    "queries": [
+      {
+        "id": "q_000046",
+        "type": "factoid",
+        "query": "Which child breaks the candy-filled hanging object?"
+      },
+      {
+        "id": "q_000047",
+        "type": "keyword",
+        "query": "children swinging bat at hanging candy"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T01:50:57.462172+00:00"
+  },
+  "-lEsnrNNZFU": {
+    "queries": [
+      {
+        "id": "q_000048",
+        "type": "factoid",
+        "query": "How many athletes jump ropes on stage?"
+      },
+      {
+        "id": "q_000049",
+        "type": "keyword",
+        "query": "gym competition team rope-jump routine"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T01:51:05.967540+00:00"
+  },
+  "-mX18jJkPDk": {
+    "queries": [
+      {
+        "id": "q_000050",
+        "type": "factoid",
+        "query": "What tool is being used to detangle hair?"
+      },
+      {
+        "id": "q_000051",
+        "type": "keyword",
+        "query": "woman combing long tangled hair on camera"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T01:51:15.298666+00:00"
+  },
+  "-nlAKyoyIuU": {
+    "queries": [
+      {
+        "id": "q_000052",
+        "type": "factoid",
+        "query": "Who became the record-holding yokozuna?"
+      },
+      {
+        "id": "q_000053",
+        "type": "keyword",
+        "query": "yokozuna record-breaking championship dohyo celebration"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T01:51:25.900967+00:00"
+  },
+  "-oJb3Acw-_s": {
+    "queries": [
+      {
+        "id": "q_000054",
+        "type": "factoid",
+        "query": "What facial piercing do they receive?"
+      },
+      {
+        "id": "q_000055",
+        "type": "keyword",
+        "query": "vlogger anxious during oral jewelry insertion"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T01:51:34.570269+00:00"
+  },
+  "-r_bvqjYjYg": {
+    "queries": [
+      {
+        "id": "q_000056",
+        "type": "factoid",
+        "query": "How far was the winning throw?"
+      },
+      {
+        "id": "q_000057",
+        "type": "keyword",
+        "query": "young athlete shot put final highlights"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T01:51:41.901233+00:00"
+  },
+  "-voGnJbk3CI": {
+    "queries": [
+      {
+        "id": "q_000058",
+        "type": "factoid",
+        "query": "How many dives did the male high-board diver do?"
+      },
+      {
+        "id": "q_000059",
+        "type": "keyword",
+        "query": "high-board dive compilation male athlete"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T01:51:53.328449+00:00"
+  },
+  "-zZJmRT9udU": {
+    "queries": [
+      {
+        "id": "q_000060",
+        "type": "factoid",
+        "query": "How does a percussionist position hands on a tall drum?"
+      },
+      {
+        "id": "q_000061",
+        "type": "keyword",
+        "query": "hand technique tall drum tutorial"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T01:52:04.881626+00:00"
+  },
+  "00KMCm2oGhk": {
+    "queries": [
+      {
+        "id": "q_000062",
+        "type": "factoid",
+        "query": "Where did the officers' drum march occur?"
+      },
+      {
+        "id": "q_000063",
+        "type": "keyword",
+        "query": "female police marching band urban shopping street parade"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T01:52:15.266472+00:00"
+  },
+  "00SfeRtiM2o": {
+    "queries": [
+      {
+        "id": "q_000064",
+        "type": "factoid",
+        "query": "Who teaches the child to snowboard?"
+      },
+      {
+        "id": "q_000065",
+        "type": "keyword",
+        "query": "child beginner snowboarding lesson safety equipment"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T01:52:27.964919+00:00"
+  },
+  "00ZRoqhhb8g": {
+    "queries": [
+      {
+        "id": "q_000066",
+        "type": "factoid",
+        "query": "Who is the athlete hurling the spear?"
+      },
+      {
+        "id": "q_000067",
+        "type": "keyword",
+        "query": "track and field athlete spear toss footage"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T01:52:39.315167+00:00"
+  },
+  "03JdaRepHkA": {
+    "queries": [
+      {
+        "id": "q_000068",
+        "type": "factoid",
+        "query": "How long to vigorously mix cocktails?"
+      },
+      {
+        "id": "q_000069",
+        "type": "keyword",
+        "query": "bartender shaker technique lime and ginger beer"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T01:52:51.023686+00:00"
+  },
+  "06Eq9tgprBw": {
+    "queries": [
+      {
+        "id": "q_000070",
+        "type": "factoid",
+        "query": "Who teaches the choreography?"
+      },
+      {
+        "id": "q_000071",
+        "type": "keyword",
+        "query": "group dance fitness routine in studio"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T01:52:59.093584+00:00"
+  },
+  "079MEwdDNjg": {
+    "queries": [
+      {
+        "id": "q_000072",
+        "type": "factoid",
+        "query": "Who won the hand-game during the rain delay?"
+      },
+      {
+        "id": "q_000073",
+        "type": "keyword",
+        "query": "players playing hand game during rain delay"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T01:53:06.611726+00:00"
+  },
+  "0AbJgWxIYVI": {
+    "queries": [
+      {
+        "id": "q_000074",
+        "type": "factoid",
+        "query": "Who are the skateboarders featured?"
+      },
+      {
+        "id": "q_000075",
+        "type": "keyword",
+        "query": "skateboard montage inspirational tricks compilation"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T01:53:14.698611+00:00"
+  },
+  "0EewuppFjEw": {
+    "queries": [
+      {
+        "id": "q_000076",
+        "type": "factoid",
+        "query": "How many riders are visible on tubes?"
+      },
+      {
+        "id": "q_000077",
+        "type": "keyword",
+        "query": "inner tube hill canopy lift families"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T01:53:25.229833+00:00"
+  },
+  "0F8F-ON083s": {
+    "queries": [
+      {
+        "id": "q_000078",
+        "type": "factoid",
+        "query": "What two flips are performed off the high platform?"
+      },
+      {
+        "id": "q_000079",
+        "type": "keyword",
+        "query": "slow-motion high-platform double somersault footage"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T01:53:43.027919+00:00"
+  },
+  "0HhNhRExwSQ": {
+    "queries": [
+      {
+        "id": "q_000080",
+        "type": "factoid",
+        "query": "How many students climb in this canyon scene?"
+      },
+      {
+        "id": "q_000081",
+        "type": "keyword",
+        "query": "college students cliff ascent with ropes gear"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T01:53:54.028081+00:00"
+  },
+  "0PS48XWOsKA": {
+    "queries": [
+      {
+        "id": "q_000082",
+        "type": "factoid",
+        "query": "What tool cleans hinged side-opening windows best?"
+      },
+      {
+        "id": "q_000083",
+        "type": "keyword",
+        "query": "hinged window washing demonstration worker"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T01:54:06.054103+00:00"
+  },
+  "0RIc6mwDRaQ": {
+    "queries": [
+      {
+        "id": "q_000084",
+        "type": "factoid",
+        "query": "Which cathedral hosts the performance?"
+      },
+      {
+        "id": "q_000085",
+        "type": "keyword",
+        "query": "sunlit cathedral harp flute duet"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T01:54:14.543433+00:00"
+  },
+  "0VVNybUx7DE": {
+    "queries": [
+      {
+        "id": "q_000086",
+        "type": "factoid",
+        "query": "How long is a typical bowler's run-up?"
+      },
+      {
+        "id": "q_000087",
+        "type": "keyword",
+        "query": "pace bowler net practice drills"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T01:54:22.629332+00:00"
+  },
+  "0YHCiC7IIg8": {
+    "queries": [
+      {
+        "id": "q_000088",
+        "type": "factoid",
+        "query": "How many harmonica players are visible?"
+      },
+      {
+        "id": "q_000089",
+        "type": "keyword",
+        "query": "energetic harmonica ensemble vintage footage"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T01:54:31.301402+00:00"
+  },
+  "0ZHZ1ZqmT7s": {
+    "queries": [
+      {
+        "id": "q_000090",
+        "type": "factoid",
+        "query": "Who is trimming the child's hair?"
+      },
+      {
+        "id": "q_000091",
+        "type": "keyword",
+        "query": "child hair trim with guitar in background"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T01:54:41.746961+00:00"
+  },
+  "0bzSBV3jHIY": {
+    "queries": [
+      {
+        "id": "q_000092",
+        "type": "factoid",
+        "query": "Which team won the doubles pool match?"
+      },
+      {
+        "id": "q_000093",
+        "type": "keyword",
+        "query": "doubles pool tournament highlights sports bar"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T01:54:53.758613+00:00"
+  },
+  "0dkIbKXXFzI": {
+    "queries": [
+      {
+        "id": "q_000094",
+        "type": "factoid",
+        "query": "How does the child maintain balance on the narrow beam?"
+      },
+      {
+        "id": "q_000095",
+        "type": "keyword",
+        "query": "kids gymnastics narrow beam practice"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T01:55:06.464721+00:00"
+  },
+  "0drl-yrfBAA": {
+    "queries": [
+      {
+        "id": "q_000096",
+        "type": "factoid",
+        "query": "How many drummers are on the field?"
+      },
+      {
+        "id": "q_000097",
+        "type": "keyword",
+        "query": "college marching band drumline warmup"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T01:55:18.260680+00:00"
+  },
+  "0e-qdFlRmPU": {
+    "queries": [
+      {
+        "id": "q_000098",
+        "type": "factoid",
+        "query": "What dance are the leads performing?"
+      },
+      {
+        "id": "q_000099",
+        "type": "keyword",
+        "query": "couple performing dramatic close-embrace dance scene"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T01:55:28.520544+00:00"
+  },
+  "0gw1Qq3WRbU": {
+    "queries": [
+      {
+        "id": "q_000100",
+        "type": "factoid",
+        "query": "How many somersaults in each jump?"
+      },
+      {
+        "id": "q_000101",
+        "type": "keyword",
+        "query": "board jump practice technique"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T01:55:38.467309+00:00"
+  },
+  "0gwhdJGq2eg": {
+    "queries": [
+      {
+        "id": "q_000102",
+        "type": "factoid",
+        "query": "Which player distracts opponents during the game?"
+      },
+      {
+        "id": "q_000103",
+        "type": "keyword",
+        "query": "pool sport players blue caps prank"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T01:55:51.364751+00:00"
+  },
+  "0h4UT-2XTAw": {
+    "queries": [
+      {
+        "id": "q_000104",
+        "type": "factoid",
+        "query": "How are sponge curlers removed?"
+      },
+      {
+        "id": "q_000105",
+        "type": "keyword",
+        "query": "sponge roller removal tutorial home"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T01:56:00.572783+00:00"
+  },
+  "0hdwFR5qWz4": {
+    "queries": [
+      {
+        "id": "q_000106",
+        "type": "factoid",
+        "query": "Who claimed the foosball world title that year?"
+      },
+      {
+        "id": "q_000107",
+        "type": "keyword",
+        "query": "foosball tournament players close-up shots"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T01:56:17.618021+00:00"
+  },
+  "0nPeqy-DA2E": {
+    "queries": [
+      {
+        "id": "q_000108",
+        "type": "factoid",
+        "query": "Who is removing the hair rollers?"
+      },
+      {
+        "id": "q_000109",
+        "type": "keyword",
+        "query": "children removing hair rollers home video"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T01:56:28.392280+00:00"
+  },
+  "0pcrpO0Gd8M": {
+    "queries": [
+      {
+        "id": "q_000110",
+        "type": "factoid",
+        "query": "How should glue be applied to strip lashes?"
+      },
+      {
+        "id": "q_000111",
+        "type": "keyword",
+        "query": "novice strip lash placement close-up tutorial"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T01:56:42.366576+00:00"
+  },
+  "0pegrKSh4iw": {
+    "queries": [
+      {
+        "id": "q_000112",
+        "type": "factoid",
+        "query": "Who is the drummer in this performance?"
+      },
+      {
+        "id": "q_000113",
+        "type": "keyword",
+        "query": "keyboardist on drums live club performance"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T01:56:55.573572+00:00"
+  },
+  "0qQvcJJekN8": {
+    "queries": [
+      {
+        "id": "q_000114",
+        "type": "factoid",
+        "query": "Who tries the adaptive seat for the first time?"
+      },
+      {
+        "id": "q_000115",
+        "type": "keyword",
+        "query": "student first ride inclusive playground"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T01:57:06.861711+00:00"
+  },
+  "0r-_a6m5k-0": {
+    "queries": [
+      {
+        "id": "q_000116",
+        "type": "factoid",
+        "query": "Who is preparing the salad in school?"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T01:57:19.897700+00:00"
+  },
+  "0uOMJSUza68": {
+    "queries": [
+      {
+        "id": "q_000117",
+        "type": "factoid",
+        "query": "Which brush prevents snagging on doll hair?"
+      },
+      {
+        "id": "q_000118",
+        "type": "keyword",
+        "query": "doll hair curling no rollers brush technique"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T01:57:26.962871+00:00"
+  },
+  "0w7cO4tscBc": {
+    "queries": [
+      {
+        "id": "q_000119",
+        "type": "factoid",
+        "query": "Which brush reduces mane hair breakage?"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T01:57:38.728468+00:00"
+  },
+  "0x4TP4MPelY": {
+    "queries": [
+      {
+        "id": "q_000120",
+        "type": "factoid",
+        "query": "Who paints fingernails in the school cafeteria?"
+      },
+      {
+        "id": "q_000121",
+        "type": "keyword",
+        "query": "student painting glitter nail polish in cafeteria"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T01:57:47.450330+00:00"
+  },
+  "0y4mO86t4Z0": {
+    "queries": [
+      {
+        "id": "q_000122",
+        "type": "factoid",
+        "query": "How does a child learn to rise trot?"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T01:57:54.723970+00:00"
+  },
+  "0y_5NIIvUzI": {
+    "queries": [
+      {
+        "id": "q_000123",
+        "type": "factoid",
+        "query": "What prize awaits the winner?"
+      },
+      {
+        "id": "q_000124",
+        "type": "keyword",
+        "query": "vintage freestyle ski jump contest footage"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T01:58:02.211659+00:00"
+  },
+  "1-Ud-q4y1oc": {
+    "queries": [
+      {
+        "id": "q_000125",
+        "type": "keyword",
+        "query": "housekeeper demonstrates interior glass wiping technique"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T01:58:14.236813+00:00"
+  },
+  "12v5k4Z8lAE": {
+    "queries": [
+      {
+        "id": "q_000126",
+        "type": "factoid",
+        "query": "How many tissue sheets are used?"
+      },
+      {
+        "id": "q_000127",
+        "type": "keyword",
+        "query": "present bag tissue folding tutorial"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T01:58:24.090915+00:00"
+  },
+  "1926p23ooUM": {
+    "queries": [
+      {
+        "id": "q_000128",
+        "type": "factoid",
+        "query": "How many markers are arranged in the exercise?"
+      },
+      {
+        "id": "q_000129",
+        "type": "keyword",
+        "query": "ball-handling cone pattern cross-dribble practice"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T01:58:39.029381+00:00"
+  },
+  "1AiQt87brik": {
+    "queries": [
+      {
+        "id": "q_000130",
+        "type": "factoid",
+        "query": "Who performs percussion during the church service?"
+      },
+      {
+        "id": "q_000131",
+        "type": "keyword",
+        "query": "worship hand-drum performance video"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T01:58:49.014543+00:00"
+  },
+  "1B3XsffrM4M": {
+    "queries": [
+      {
+        "id": "q_000132",
+        "type": "factoid",
+        "query": "What handheld prop does the performer use?"
+      },
+      {
+        "id": "q_000133",
+        "type": "keyword",
+        "query": "handheld folding prop martial arts routine"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T01:58:58.227477+00:00"
+  },
+  "1H2bRd91sZw": {
+    "queries": [
+      {
+        "id": "q_000134",
+        "type": "factoid",
+        "query": "What canned meat appears in the bread snack?"
+      },
+      {
+        "id": "q_000135",
+        "type": "keyword",
+        "query": "canned pork and cheese open-faced bread recipe"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T01:59:10.692316+00:00"
+  },
+  "1IhbkbuDPpc": {
+    "queries": [
+      {
+        "id": "q_000136",
+        "type": "factoid",
+        "query": "How many instructors lead the skating demonstration?"
+      },
+      {
+        "id": "q_000137",
+        "type": "keyword",
+        "query": "school inline skating demo two instructors"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T01:59:19.909629+00:00"
+  },
+  "1JKgr3KfoHo": {
+    "queries": [
+      {
+        "id": "q_000138",
+        "type": "factoid",
+        "query": "Who demonstrates the skating and puck drills?"
+      },
+      {
+        "id": "q_000139",
+        "type": "keyword",
+        "query": "young players skating puck drills"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T01:59:29.831755+00:00"
+  },
+  "1L_4N307nBk": {
+    "queries": [
+      {
+        "id": "q_000140",
+        "type": "factoid",
+        "query": "What equipment is used for beginner gymnastics beam practice?"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T01:59:38.727515+00:00"
+  },
+  "1MBVaveQDd8": {
+    "queries": [
+      {
+        "id": "q_000141",
+        "type": "factoid",
+        "query": "Who performs the cumbia dance here?"
+      },
+      {
+        "id": "q_000142",
+        "type": "keyword",
+        "query": "couple cumbia dance celebration footage"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T01:59:49.863391+00:00"
+  },
+  "1NAlbF88oUI": {
+    "queries": [
+      {
+        "id": "q_000143",
+        "type": "factoid",
+        "query": "Who won the national forearm duel?"
+      },
+      {
+        "id": "q_000144",
+        "type": "keyword",
+        "query": "finals forearm duel competitors at table"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T01:59:59.608853+00:00"
+  },
+  "1PQiq8zajCE": {
+    "queries": [
+      {
+        "id": "q_000145",
+        "type": "factoid",
+        "query": "Who hit targets with eyes covered?"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:00:10.348205+00:00"
+  },
+  "1RKExOpIGas": {
+    "queries": [
+      {
+        "id": "q_000146",
+        "type": "factoid",
+        "query": "Who rides the newest orange motocross bike?"
+      },
+      {
+        "id": "q_000147",
+        "type": "keyword",
+        "query": "motocross riders dirt track jumps"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:00:16.503004+00:00"
+  },
+  "1RQ27XZKU1E": {
+    "queries": [
+      {
+        "id": "q_000148",
+        "type": "factoid",
+        "query": "How many sections make this braided hairstyle?"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:00:26.610190+00:00"
+  },
+  "1U8y7e22SQg": {
+    "queries": [
+      {
+        "id": "q_000149",
+        "type": "factoid",
+        "query": "Who leads the mop dance routine?"
+      },
+      {
+        "id": "q_000150",
+        "type": "keyword",
+        "query": "kitchen mop dance tutorial"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:00:32.057727+00:00"
+  },
+  "1VSqWp5DZiU": {
+    "queries": [
+      {
+        "id": "q_000151",
+        "type": "factoid",
+        "query": "Which instructors lead the Zumba routine?"
+      },
+      {
+        "id": "q_000152",
+        "type": "keyword",
+        "query": "coastal Chile Zumba choreography class"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:00:38.142565+00:00"
+  },
+  "1VwNfMlb4JU": {
+    "queries": [
+      {
+        "id": "q_000153",
+        "type": "factoid",
+        "query": "What tools does the stylist use to trim locks?"
+      },
+      {
+        "id": "q_000154",
+        "type": "keyword",
+        "query": "scissors trim transformation closeup video"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:00:46.831839+00:00"
+  },
+  "1X4hgrBjw-U": {
+    "queries": [
+      {
+        "id": "q_000155",
+        "type": "factoid",
+        "query": "Who objects to officers at the dessert counter?"
+      },
+      {
+        "id": "q_000156",
+        "type": "keyword",
+        "query": "officers buying desserts in shop confrontation"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:00:55.433109+00:00"
+  },
+  "1a8PCm9e1YU": {
+    "queries": [
+      {
+        "id": "q_000157",
+        "type": "factoid",
+        "query": "What age is the child on hand drums?"
+      },
+      {
+        "id": "q_000158",
+        "type": "keyword",
+        "query": "child hand drums performance living room"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:01:02.329097+00:00"
+  },
+  "1dvrNvxw43Q": {
+    "queries": [
+      {
+        "id": "q_000159",
+        "type": "factoid",
+        "query": "How many anglers are visible on the frozen lake?"
+      },
+      {
+        "id": "q_000160",
+        "type": "keyword",
+        "query": "angler on frozen lake drilling hole"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:01:11.181829+00:00"
+  },
+  "1ebIpLiTCvw": {
+    "queries": [
+      {
+        "id": "q_000161",
+        "type": "factoid",
+        "query": "What items are shown being prepared for street outreach?"
+      },
+      {
+        "id": "q_000162",
+        "type": "keyword",
+        "query": "packing food kits for street distribution"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:01:18.942064+00:00"
+  },
+  "1fbU_MkV7NE": {
+    "queries": [
+      {
+        "id": "q_000163",
+        "type": "factoid",
+        "query": "How to position feet for abdominal exercise?"
+      },
+      {
+        "id": "q_000164",
+        "type": "keyword",
+        "query": "seated core roll demonstration"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:01:26.071665+00:00"
+  },
+  "1ftLLKrC81s": {
+    "queries": [
+      {
+        "id": "q_000165",
+        "type": "factoid",
+        "query": "Who are the two tango dancers performing?"
+      },
+      {
+        "id": "q_000166",
+        "type": "keyword",
+        "query": "Argentinian tango professional duo stage performance"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:01:33.976665+00:00"
+  },
+  "1hiyhNqakMI": {
+    "queries": [
+      {
+        "id": "q_000167",
+        "type": "factoid",
+        "query": "What equipment trims a backyard lawn efficiently?"
+      },
+      {
+        "id": "q_000168",
+        "type": "keyword",
+        "query": "backyard mower hyperlapse sunny day"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:01:43.589485+00:00"
+  },
+  "1ioKX0iuico": {
+    "queries": [
+      {
+        "id": "q_000169",
+        "type": "factoid",
+        "query": "How to pop up on a towboard behind a motorboat?"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:01:56.657045+00:00"
+  },
+  "1jjsTfZS5DY": {
+    "queries": [
+      {
+        "id": "q_000170",
+        "type": "factoid",
+        "query": "What causes gaps when covering a box with paper?"
+      },
+      {
+        "id": "q_000171",
+        "type": "keyword",
+        "query": "box paper folding fail holiday comedy"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:02:10.452792+00:00"
+  },
+  "1lagsBNqNe4": {
+    "queries": [
+      {
+        "id": "q_000172",
+        "type": "factoid",
+        "query": "How do you create a crisp sleeve seam?"
+      },
+      {
+        "id": "q_000173",
+        "type": "keyword",
+        "query": "service shirt ironing sleeve seam tutorial"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:02:23.921298+00:00"
+  },
+  "1oM26-0yFcM": {
+    "queries": [
+      {
+        "id": "q_000174",
+        "type": "factoid",
+        "query": "Who is the athlete in this field event?"
+      },
+      {
+        "id": "q_000175",
+        "type": "keyword",
+        "query": "rotational release technique field athlete video"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:02:33.200534+00:00"
+  },
+  "1qKXZ9fThTg": {
+    "queries": [
+      {
+        "id": "q_000176",
+        "type": "factoid",
+        "query": "How to paint trendy nail designs?"
+      },
+      {
+        "id": "q_000177",
+        "type": "keyword",
+        "query": "DIY at-home nail art tutorial"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:02:41.370765+00:00"
+  },
+  "1rdecGieY-M": {
+    "queries": [
+      {
+        "id": "q_000178",
+        "type": "factoid",
+        "query": "Who assists with the dough preparation?"
+      },
+      {
+        "id": "q_000179",
+        "type": "keyword",
+        "query": "elderly woman and child rolling dough"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:02:51.400012+00:00"
+  },
+  "1rf7t4sYtIA": {
+    "queries": [
+      {
+        "id": "q_000180",
+        "type": "factoid",
+        "query": "Who is operating the yard blower?"
+      },
+      {
+        "id": "q_000181",
+        "type": "keyword",
+        "query": "child assisting parent with yard blower"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:03:01.335601+00:00"
+  },
+  "1uiEkwykOxo": {
+    "queries": [
+      {
+        "id": "q_000182",
+        "type": "factoid",
+        "query": "Who runs the riding center?"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:03:13.993465+00:00"
+  },
+  "1wjnveHAhGE": {
+    "queries": [
+      {
+        "id": "q_000183",
+        "type": "factoid",
+        "query": "What exercise device switches between pedaling and striding?"
+      },
+      {
+        "id": "q_000184",
+        "type": "keyword",
+        "query": "seated to standing cardio machine demo"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:03:21.178588+00:00"
+  },
+  "21biKVGaY1Y": {
+    "queries": [
+      {
+        "id": "q_000185",
+        "type": "factoid",
+        "query": "How many children are sculpting the sandcastle?"
+      },
+      {
+        "id": "q_000186",
+        "type": "keyword",
+        "query": "children sculpting sandcastle seaside afternoon"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:03:30.727391+00:00"
+  },
+  "231pbDe3uQc": {
+    "queries": [
+      {
+        "id": "q_000187",
+        "type": "factoid",
+        "query": "What color is the rider's dirt bike?"
+      },
+      {
+        "id": "q_000188",
+        "type": "keyword",
+        "query": "dirt bike jump training track"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:03:41.049244+00:00"
+  },
+  "29UfCoftDkA": {
+    "queries": [
+      {
+        "id": "q_000189",
+        "type": "factoid",
+        "query": "How does he stabilize while walking between rehab bars?"
+      },
+      {
+        "id": "q_000190",
+        "type": "keyword",
+        "query": "man practicing walking between therapy bars progress"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:03:48.961493+00:00"
+  },
+  "2AE847UXu3Q": {
+    "queries": [
+      {
+        "id": "q_000191",
+        "type": "factoid",
+        "query": "What tool is he using to style hair?"
+      },
+      {
+        "id": "q_000192",
+        "type": "keyword",
+        "query": "man grooming hair interview prep"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:03:58.461255+00:00"
+  },
+  "2D22fVcAcyo": {
+    "queries": [
+      {
+        "id": "q_000193",
+        "type": "factoid",
+        "query": "What are athletes walking on above the creek?"
+      },
+      {
+        "id": "q_000194",
+        "type": "keyword",
+        "query": "mountain rope-walking tricks over creek"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:04:11.026706+00:00"
+  },
+  "2FIQwmB362w": {
+    "queries": [
+      {
+        "id": "q_000195",
+        "type": "factoid",
+        "query": "How should your lead foot be angled?"
+      },
+      {
+        "id": "q_000196",
+        "type": "keyword",
+        "query": "moving stance lead-foot flip technique"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:04:31.779827+00:00"
+  },
+  "2GCNxOKMtBo": {
+    "queries": [
+      {
+        "id": "q_000197",
+        "type": "factoid",
+        "query": "What tool reveals fish beneath the ice?"
+      },
+      {
+        "id": "q_000198",
+        "type": "keyword",
+        "query": "angler sonar ice hole large fish strike"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:04:40.122423+00:00"
+  },
+  "2ISOAmuzs24": {
+    "queries": [
+      {
+        "id": "q_000199",
+        "type": "factoid",
+        "query": "How many penalty kicks were taken?"
+      },
+      {
+        "id": "q_000200",
+        "type": "keyword",
+        "query": "penalty shootout on sandy field footage"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:04:50.097146+00:00"
+  },
+  "2PFU_Ee0x14": {
+    "queries": [
+      {
+        "id": "q_000201",
+        "type": "factoid",
+        "query": "How many players are on the court?"
+      },
+      {
+        "id": "q_000202",
+        "type": "keyword",
+        "query": "group racquet sport outdoor court"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:05:03.088885+00:00"
+  },
+  "2QydTDAYJsA": {
+    "queries": [
+      {
+        "id": "q_000203",
+        "type": "factoid",
+        "query": "What animal is being roped?"
+      },
+      {
+        "id": "q_000204",
+        "type": "keyword",
+        "query": "young cowboy lassoing calf rodeo ring"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:05:10.675770+00:00"
+  },
+  "2SKZB0bfqF8": {
+    "queries": [
+      {
+        "id": "q_000205",
+        "type": "factoid",
+        "query": "What device eases clearing snow?"
+      },
+      {
+        "id": "q_000206",
+        "type": "keyword",
+        "query": "ergonomic snow clearing aid demo"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:05:19.091696+00:00"
+  },
+  "2SYTRqm4Ym4": {
+    "queries": [
+      {
+        "id": "q_000207",
+        "type": "factoid",
+        "query": "What are the kids sliding down?"
+      },
+      {
+        "id": "q_000208",
+        "type": "keyword",
+        "query": "kids sliding down outdoor play area slide"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:05:27.502745+00:00"
+  },
+  "2Tuht3F2uc8": {
+    "queries": [
+      {
+        "id": "q_000209",
+        "type": "factoid",
+        "query": "What device clears snow without bending?"
+      },
+      {
+        "id": "q_000210",
+        "type": "keyword",
+        "query": "push-style snow clearing tool demo"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:05:35.779124+00:00"
+  },
+  "2UfljrwzsLs": {
+    "queries": [
+      {
+        "id": "q_000211",
+        "type": "factoid",
+        "query": "Who is painting the nails?"
+      },
+      {
+        "id": "q_000212",
+        "type": "keyword",
+        "query": "comedy nail painting scratch reaction"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:05:44.462317+00:00"
+  },
+  "2VoWT4gnQDg": {
+    "queries": [
+      {
+        "id": "q_000213",
+        "type": "factoid",
+        "query": "What tool is he using?"
+      },
+      {
+        "id": "q_000214",
+        "type": "keyword",
+        "query": "single-person roof stripping tool demo"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:05:56.921730+00:00"
+  },
+  "2Voht8wf3dQ": {
+    "queries": [
+      {
+        "id": "q_000215",
+        "type": "factoid",
+        "query": "How many sharpening steps does this tool use?"
+      },
+      {
+        "id": "q_000216",
+        "type": "keyword",
+        "query": "portable blade edge honing demonstration"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:06:08.355446+00:00"
+  },
+  "2WyRPSKFUi8": {
+    "queries": [
+      {
+        "id": "q_000217",
+        "type": "factoid",
+        "query": "How does the blower attach to a mower?"
+      },
+      {
+        "id": "q_000218",
+        "type": "keyword",
+        "query": "attach blower to mower quick demo"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:06:15.447438+00:00"
+  },
+  "2XOTxAZZhsQ": {
+    "queries": [
+      {
+        "id": "q_000219",
+        "type": "factoid",
+        "query": "Who is rinsing plates at the sink?"
+      },
+      {
+        "id": "q_000220",
+        "type": "keyword",
+        "query": "rinsing plates kitchen sink close-up"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:06:22.667154+00:00"
+  },
+  "2_hcULoN4Ls": {
+    "queries": [
+      {
+        "id": "q_000221",
+        "type": "factoid",
+        "query": "How many players per team on the field?"
+      },
+      {
+        "id": "q_000222",
+        "type": "keyword",
+        "query": "equestrian team field match action footage"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:06:34.133468+00:00"
+  },
+  "2aw1pVJsnKs": {
+    "queries": [
+      {
+        "id": "q_000223",
+        "type": "factoid",
+        "query": "How many riders fall performing large jumps?"
+      },
+      {
+        "id": "q_000224",
+        "type": "keyword",
+        "query": "off-road motorcycle accident compilation"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:06:45.154398+00:00"
+  },
+  "2belnHaa36g": {
+    "queries": [
+      {
+        "id": "q_000225",
+        "type": "factoid",
+        "query": "Who is performing on the drum kit?"
+      },
+      {
+        "id": "q_000226",
+        "type": "keyword",
+        "query": "studio drummer practice with microphones"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:06:54.889063+00:00"
+  },
+  "2imjxY43yYM": {
+    "queries": [
+      {
+        "id": "q_000227",
+        "type": "factoid",
+        "query": "How many people are dancing?"
+      },
+      {
+        "id": "q_000228",
+        "type": "keyword",
+        "query": "couple dancing Latin rhythm street NYC 2011"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:07:01.630547+00:00"
+  },
+  "2oNsMva04MM": {
+    "queries": [
+      {
+        "id": "q_000229",
+        "type": "factoid",
+        "query": "What brush stroke builds layered acrylic textures?"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:07:08.272136+00:00"
+  },
+  "2oc0OBWkYfg": {
+    "queries": [
+      {
+        "id": "q_000230",
+        "type": "factoid",
+        "query": "How do you take out vintage rollers safely?"
+      },
+      {
+        "id": "q_000231",
+        "type": "keyword",
+        "query": "vintage roller removal mid-length hair"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:07:19.319243+00:00"
+  },
+  "2oizmWFx4PA": {
+    "queries": [
+      {
+        "id": "q_000232",
+        "type": "keyword",
+        "query": "crank arm thread chaser tutorial"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:07:25.327862+00:00"
+  },
+  "2rHsoF35eQw": {
+    "queries": [
+      {
+        "id": "q_000233",
+        "type": "factoid",
+        "query": "How many people are in the raft?"
+      },
+      {
+        "id": "q_000234",
+        "type": "keyword",
+        "query": "paddlers navigating fast river rapids promo"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:07:33.748779+00:00"
+  },
+  "2tf414bkudE": {
+    "queries": [
+      {
+        "id": "q_000235",
+        "type": "factoid",
+        "query": "How long for a hand-filed blade to shave hair?"
+      },
+      {
+        "id": "q_000236",
+        "type": "keyword",
+        "query": "kitchen blade quick honing demo"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:07:53.471128+00:00"
+  },
+  "2tlLq9qvG-c": {
+    "queries": [
+      {
+        "id": "q_000237",
+        "type": "factoid",
+        "query": "Which ingredients are combined to form the dough?"
+      },
+      {
+        "id": "q_000238",
+        "type": "keyword",
+        "query": "minimal ingredient cookie mixing and baking"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:08:04.277699+00:00"
+  },
+  "2uBPhFis_4Y": {
+    "queries": [
+      {
+        "id": "q_000239",
+        "type": "factoid",
+        "query": "Who is performing on congas at the trade show?"
+      },
+      {
+        "id": "q_000240",
+        "type": "keyword",
+        "query": "conga performance close-up trade show demo"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:08:13.280972+00:00"
+  },
+  "2vAaAy_WC7Y": {
+    "queries": [
+      {
+        "id": "q_000241",
+        "type": "factoid",
+        "query": "Which celebrity-themed cake are they making?"
+      },
+      {
+        "id": "q_000242",
+        "type": "keyword",
+        "query": "snake-shaped cake decorating tutorial"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:08:20.454480+00:00"
+  },
+  "2zVpWu1i5qM": {
+    "queries": [
+      {
+        "id": "q_000243",
+        "type": "factoid",
+        "query": "How do students instruct the teacher with commands?"
+      },
+      {
+        "id": "q_000244",
+        "type": "keyword",
+        "query": "classroom coding activity children program teacher assemble sandwich"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:08:30.885351+00:00"
+  },
+  "2zohqWPmeQU": {
+    "queries": [
+      {
+        "id": "q_000245",
+        "type": "factoid",
+        "query": "How to remove rust from cast-iron bench?"
+      },
+      {
+        "id": "q_000246",
+        "type": "keyword",
+        "query": "cast iron bench sanding and painting steps"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:08:38.713604+00:00"
+  },
+  "3-KLYPzd1zU": {
+    "queries": [
+      {
+        "id": "q_000247",
+        "type": "factoid",
+        "query": "How many people are floating together?"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:08:46.038932+00:00"
+  },
+  "32z1yiC0Co0": {
+    "queries": [
+      {
+        "id": "q_000248",
+        "type": "factoid",
+        "query": "What distance do they run?"
+      },
+      {
+        "id": "q_000249",
+        "type": "keyword",
+        "query": "female runners finishing half race footage"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:08:56.227406+00:00"
+  },
+  "33eH3ozXLmU": {
+    "queries": [
+      {
+        "id": "q_000250",
+        "type": "factoid",
+        "query": "What triggered the vessel's catastrophic explosion?"
+      },
+      {
+        "id": "q_000251",
+        "type": "keyword",
+        "query": "sunken vessel river dive close-up shots"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:09:05.119010+00:00"
+  },
+  "34KalqGygZ0": {
+    "queries": [
+      {
+        "id": "q_000252",
+        "type": "factoid",
+        "query": "How many horses are in the riding group?"
+      },
+      {
+        "id": "q_000253",
+        "type": "keyword",
+        "query": "canyon horse riding scenic sunset footage"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:09:11.726523+00:00"
+  },
+  "35SpLMcN-m8": {
+    "queries": [
+      {
+        "id": "q_000254",
+        "type": "factoid",
+        "query": "Who kicks the ball into the outfield?"
+      },
+      {
+        "id": "q_000255",
+        "type": "keyword",
+        "query": "outdoor squad kicking game in heat"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:09:25.869744+00:00"
+  },
+  "35WvCw9Qcqk": {
+    "queries": [
+      {
+        "id": "q_000256",
+        "type": "factoid",
+        "query": "What caused the rider's downhill crash?"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:09:33.813503+00:00"
+  },
+  "38ZxXyECPPU": {
+    "queries": [
+      {
+        "id": "q_000257",
+        "type": "factoid",
+        "query": "What does ginga look like?"
+      },
+      {
+        "id": "q_000258",
+        "type": "keyword",
+        "query": "capoeira ginga basic movement sequence"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:09:53.433369+00:00"
+  },
+  "39dTxOhrW68": {
+    "queries": [
+      {
+        "id": "q_000259",
+        "type": "factoid",
+        "query": "What tool slices thick hedge stems?"
+      },
+      {
+        "id": "q_000260",
+        "type": "keyword",
+        "query": "motorized trimmer cutting suburban shrubs"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:10:15.027646+00:00"
+  },
+  "3FAvxuTw4NI": {
+    "queries": [
+      {
+        "id": "q_000261",
+        "type": "factoid",
+        "query": "What material is the glider's covering made of?"
+      },
+      {
+        "id": "q_000262",
+        "type": "keyword",
+        "query": "hall glider demonstration silk bamboo kite reel"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:10:23.599506+00:00"
+  },
+  "3G1T_V102GA": {
+    "queries": [
+      {
+        "id": "q_000263",
+        "type": "factoid",
+        "query": "How is a facial razor sharpened?"
+      },
+      {
+        "id": "q_000264",
+        "type": "keyword",
+        "query": "wet shave demo blade sharpening whetstone"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:10:38.181619+00:00"
+  },
+  "3I4EzlMo124": {
+    "queries": [
+      {
+        "id": "q_000265",
+        "type": "factoid",
+        "query": "Which mount and dismount are shown on the beam?"
+      },
+      {
+        "id": "q_000266",
+        "type": "keyword",
+        "query": "vintage Soviet gymnast beam routine video"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:10:53.107512+00:00"
+  },
+  "3ImTO0bzXPA": {
+    "queries": [
+      {
+        "id": "q_000267",
+        "type": "factoid",
+        "query": "How is a dermal anchor near the eyebrow placed?"
+      },
+      {
+        "id": "q_000268",
+        "type": "keyword",
+        "query": "eyebrow dermal anchor piercing technique"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:11:04.697217+00:00"
+  },
+  "3JHIcli-Wlg": {
+    "queries": [
+      {
+        "id": "q_000269",
+        "type": "factoid",
+        "query": "Who is the athlete on the horse apparatus?"
+      },
+      {
+        "id": "q_000270",
+        "type": "keyword",
+        "query": "gymnast performs circular leg swings on apparatus"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:11:20.938285+00:00"
+  },
+  "3JcvtncHhLw": {
+    "queries": [
+      {
+        "id": "q_000271",
+        "type": "factoid",
+        "query": "What small animal appears in the video?"
+      },
+      {
+        "id": "q_000272",
+        "type": "keyword",
+        "query": "charity road race runner kitten"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:11:30.085296+00:00"
+  },
+  "3K_8CdJS9lE": {
+    "queries": [
+      {
+        "id": "q_000273",
+        "type": "factoid",
+        "query": "Who swings at the hanging candy target?"
+      },
+      {
+        "id": "q_000274",
+        "type": "keyword",
+        "query": "parent swings bat at backyard party"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:11:37.971647+00:00"
+  },
+  "3KmMvfdidvQ": {
+    "queries": [
+      {
+        "id": "q_000275",
+        "type": "factoid",
+        "query": "Who is the towering wrestler challenging the sumo champion?"
+      },
+      {
+        "id": "q_000276",
+        "type": "keyword",
+        "query": "giant wrestler vs sumo match highlights"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:11:48.047681+00:00"
+  },
+  "3L0MnbQkLWM": {
+    "queries": [
+      {
+        "id": "q_000277",
+        "type": "factoid",
+        "query": "How many children jump in the chalk grid?"
+      },
+      {
+        "id": "q_000278",
+        "type": "keyword",
+        "query": "children playing chalk grid sidewalk game"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:11:56.953405+00:00"
+  },
+  "3MJQEQ98168": {
+    "queries": [
+      {
+        "id": "q_000279",
+        "type": "factoid",
+        "query": "What age is the boy?"
+      },
+      {
+        "id": "q_000280",
+        "type": "keyword",
+        "query": "boy climbing playground horizontal bars"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:12:05.704496+00:00"
+  },
+  "3OXh6OV2Zrc": {
+    "queries": [
+      {
+        "id": "q_000281",
+        "type": "factoid",
+        "query": "Which city landmark did she jump from?"
+      },
+      {
+        "id": "q_000282",
+        "type": "keyword",
+        "query": "woman leaping off waterfront bridge New Zealand"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:12:15.221629+00:00"
+  },
+  "3SLaaTD8t3Q": {
+    "queries": [
+      {
+        "id": "q_000283",
+        "type": "factoid",
+        "query": "Who is putting on sunblock?"
+      },
+      {
+        "id": "q_000284",
+        "type": "keyword",
+        "query": "family sunblock routine toddler care"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:12:29.545704+00:00"
+  },
+  "3SjuIcAfeWk": {
+    "queries": [
+      {
+        "id": "q_000285",
+        "type": "factoid",
+        "query": "How does clear film mold to vase shapes?"
+      },
+      {
+        "id": "q_000286",
+        "type": "keyword",
+        "query": "vase wrapping clear film ribbon quick technique"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:12:38.227755+00:00"
+  },
+  "3TLhUYQ8geM": {
+    "queries": [
+      {
+        "id": "q_000287",
+        "type": "factoid",
+        "query": "How do rollers prevent rim damage?"
+      },
+      {
+        "id": "q_000288",
+        "type": "keyword",
+        "query": "wheel changing tool with rollers demonstration"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:12:46.714897+00:00"
+  },
+  "3TsNntqwbSQ": {
+    "queries": [
+      {
+        "id": "q_000289",
+        "type": "factoid",
+        "query": "What animal is being ridden?"
+      },
+      {
+        "id": "q_000290",
+        "type": "keyword",
+        "query": "camel trek near Giza plateau Egypt"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:12:54.109957+00:00"
+  },
+  "3TxZTZEEg44": {
+    "queries": [
+      {
+        "id": "q_000291",
+        "type": "factoid",
+        "query": "Which grip helps handle high-bouncing serves?"
+      },
+      {
+        "id": "q_000292",
+        "type": "keyword",
+        "query": "coach shows forehand-style hold for returning serves"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:13:05.648913+00:00"
+  },
+  "3UrypnvwAOY": {
+    "queries": [
+      {
+        "id": "q_000293",
+        "type": "factoid",
+        "query": "Who is the woman holding the fiddle?"
+      },
+      {
+        "id": "q_000294",
+        "type": "keyword",
+        "query": "female violinist at family gathering close-up"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:13:14.637852+00:00"
+  },
+  "3abD7z6vRPM": {
+    "queries": [
+      {
+        "id": "q_000295",
+        "type": "factoid",
+        "query": "Who coaches the single-movement overhead lift?"
+      },
+      {
+        "id": "q_000296",
+        "type": "keyword",
+        "query": "weightlifting coach demonstrates single-movement overhead lift"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:13:22.919324+00:00"
+  },
+  "3bi2XM3scQA": {
+    "queries": [
+      {
+        "id": "q_000297",
+        "type": "factoid",
+        "query": "How many people lift one barbell together?"
+      },
+      {
+        "id": "q_000298",
+        "type": "keyword",
+        "query": "two athletes barbell overhead lift gym"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:13:33.768944+00:00"
+  },
+  "3fyR5F18WKg": {
+    "queries": [
+      {
+        "id": "q_000299",
+        "type": "factoid",
+        "query": "Who are the two musicians at the piano?"
+      },
+      {
+        "id": "q_000300",
+        "type": "keyword",
+        "query": "bandmates performing piano duet indoors"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:13:45.382288+00:00"
+  },
+  "3hZjxdMcG6o": {
+    "queries": [
+      {
+        "id": "q_000301",
+        "type": "factoid",
+        "query": "Who intercepts the stray pass before the layup?"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:13:53.792619+00:00"
+  },
+  "3jZq0UaDIks": {
+    "queries": [
+      {
+        "id": "q_000302",
+        "type": "factoid",
+        "query": "How many people float on inflatable tubes?"
+      },
+      {
+        "id": "q_000303",
+        "type": "keyword",
+        "query": "inflatable tubes tropical stream footage"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:14:02.438269+00:00"
+  },
+  "3lkZPJES45Q": {
+    "queries": [
+      {
+        "id": "q_000304",
+        "type": "factoid",
+        "query": "How does two-foot pedal create rapid kick alternation?"
+      },
+      {
+        "id": "q_000305",
+        "type": "keyword",
+        "query": "drummer demonstrating two-foot pedal close-up"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:14:11.966968+00:00"
+  },
+  "3nX5ZwzHftM": {
+    "queries": [
+      {
+        "id": "q_000306",
+        "type": "factoid",
+        "query": "How many people are floating on inner tubes?"
+      },
+      {
+        "id": "q_000307",
+        "type": "keyword",
+        "query": "desert river float inner tubes group"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:14:21.871469+00:00"
+  },
+  "3ohvA6Raf4w": {
+    "queries": [
+      {
+        "id": "q_000308",
+        "type": "factoid",
+        "query": "What dance style is she performing?"
+      },
+      {
+        "id": "q_000309",
+        "type": "keyword",
+        "query": "woman performing Latin dance workout"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:14:30.863263+00:00"
+  },
+  "3q_MOQNfSmA": {
+    "queries": [
+      {
+        "id": "q_000310",
+        "type": "factoid",
+        "query": "Who is teaching the croquet session?"
+      },
+      {
+        "id": "q_000311",
+        "type": "keyword",
+        "query": "outdoor croquet lesson coach demonstrating strokes"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:14:37.564864+00:00"
+  },
+  "45AIj4-_RBw": {
+    "queries": [
+      {
+        "id": "q_000312",
+        "type": "factoid",
+        "query": "Who is the child performing at the piano?"
+      },
+      {
+        "id": "q_000313",
+        "type": "keyword",
+        "query": "young pianist singing movie soundtrack cover"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:14:46.928711+00:00"
+  },
+  "4CsTbXdERSU": {
+    "queries": [
+      {
+        "id": "q_000314",
+        "type": "factoid",
+        "query": "How is roofing membrane heated and adhered?"
+      },
+      {
+        "id": "q_000315",
+        "type": "keyword",
+        "query": "contractor torching membrane on low-slope roof"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:14:56.944205+00:00"
+  },
+  "4EloxAiCydc": {
+    "queries": [
+      {
+        "id": "q_000316",
+        "type": "factoid",
+        "query": "Comment adoucir une carre endommagée avant limage?"
+      },
+      {
+        "id": "q_000317",
+        "type": "keyword",
+        "query": "ponçage diamant carres ski préparation"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:15:06.368113+00:00"
+  },
+  "4Ex-sB0vtwk": {
+    "queries": [
+      {
+        "id": "q_000318",
+        "type": "factoid",
+        "query": "How many discs per player in table shuffle?"
+      },
+      {
+        "id": "q_000319",
+        "type": "keyword",
+        "query": "resort deck game players sliding discs"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:15:17.388384+00:00"
+  },
+  "4IC1_C_dtvk": {
+    "queries": [
+      {
+        "id": "q_000320",
+        "type": "factoid",
+        "query": "Who leads the hand-drum jam?"
+      },
+      {
+        "id": "q_000321",
+        "type": "keyword",
+        "query": "live hand percussion trio small venue"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:15:26.459101+00:00"
+  },
+  "4ImpZRtbzYw": {
+    "queries": [
+      {
+        "id": "q_000322",
+        "type": "factoid",
+        "query": "How do you distress paint on a wooden table?"
+      },
+      {
+        "id": "q_000323",
+        "type": "keyword",
+        "query": "distressing and sanding small wooden table"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:15:32.739308+00:00"
+  },
+  "4KE6dUAGZ94": {
+    "queries": [
+      {
+        "id": "q_000324",
+        "type": "factoid",
+        "query": "Who achieved the top score on the apparatus?"
+      },
+      {
+        "id": "q_000325",
+        "type": "keyword",
+        "query": "male gymnast winning routine horse apparatus competition"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:15:45.834378+00:00"
+  },
+  "4Lu8ECLHvK4": {
+    "queries": [
+      {
+        "id": "q_000326",
+        "type": "factoid",
+        "query": "How old is the child running on the field?"
+      },
+      {
+        "id": "q_000327",
+        "type": "keyword",
+        "query": "toddler kickball game at community park field"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:15:55.989351+00:00"
+  },
+  "4MBGT228QiQ": {
+    "queries": [
+      {
+        "id": "q_000328",
+        "type": "factoid",
+        "query": "How many lemons are used?"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:16:11.084414+00:00"
+  },
+  "4Oug7S32B-4": {
+    "queries": [
+      {
+        "id": "q_000329",
+        "type": "factoid",
+        "query": "How heavy was the refrigerator he carried?"
+      },
+      {
+        "id": "q_000330",
+        "type": "keyword",
+        "query": "runner carrying refrigerator in marathon"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:16:23.825119+00:00"
+  },
+  "4Q5YJKHa5W0": {
+    "queries": [
+      {
+        "id": "q_000331",
+        "type": "factoid",
+        "query": "How long to toast the bread?"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:16:35.424649+00:00"
+  },
+  "4QvpJ71d8Nk": {
+    "queries": [
+      {
+        "id": "q_000332",
+        "type": "factoid",
+        "query": "How many performers are synchronized?"
+      },
+      {
+        "id": "q_000333",
+        "type": "keyword",
+        "query": "tandem jump-rope performance video"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:16:46.299547+00:00"
+  },
+  "4R37E4Kevs4": {
+    "queries": [
+      {
+        "id": "q_000334",
+        "type": "factoid",
+        "query": "Is the dog inhaling smoke from a waterpipe?"
+      },
+      {
+        "id": "q_000335",
+        "type": "keyword",
+        "query": "puppy waterpipe funny clip"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:16:53.264489+00:00"
+  },
+  "4T8uFygBeNo": {
+    "queries": [
+      {
+        "id": "q_000336",
+        "type": "factoid",
+        "query": "What camera captured the rides?"
+      },
+      {
+        "id": "q_000337",
+        "type": "keyword",
+        "query": "coastal sunset longboard skating session"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:17:01.438150+00:00"
+  },
+  "4W4mrswC2tA": {
+    "queries": [
+      {
+        "id": "q_000338",
+        "type": "factoid",
+        "query": "How heavy was the barbell lifted?"
+      },
+      {
+        "id": "q_000339",
+        "type": "keyword",
+        "query": "female weightlifter overhead lift footage"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:17:12.431723+00:00"
+  },
+  "4YJ_L7jqgoA": {
+    "queries": [
+      {
+        "id": "q_000340",
+        "type": "factoid",
+        "query": "Who performs the 315-pound overhead lift?"
+      },
+      {
+        "id": "q_000341",
+        "type": "keyword",
+        "query": "315 lb Olympic weightlifting technique breakdown"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:17:22.667984+00:00"
+  },
+  "4_wfCFTnExI": {
+    "queries": [
+      {
+        "id": "q_000342",
+        "type": "factoid",
+        "query": "How many players per sand volleyball team?"
+      },
+      {
+        "id": "q_000343",
+        "type": "keyword",
+        "query": "sand court spike action camera footage"
+      }
+    ],
+    "model": "gpt-5-mini",
+    "provider": "openai",
+    "generated_at": "2026-06-19T02:17:33.688367+00:00"
+  }
+}
